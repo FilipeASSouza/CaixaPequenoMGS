@@ -1,0 +1,21 @@
+# Jaca compilado
+**/*.class
+
+# Arquivos de parcote
+**/*.jar
+**/*.war
+**/*.ear
+
+#pasta do Idea
+.idea/
+
+
+#pastas de arquivos temporarios
+temp/
+out/
+
+# arquivo compilando do iReport
+*.jasper
+
+#arquivo de projeto do idea
+*.iml
