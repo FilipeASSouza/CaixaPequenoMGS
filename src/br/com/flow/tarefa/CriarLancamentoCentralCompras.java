@@ -12,6 +12,7 @@ import br.com.util.NativeSqlDecorator;
 import com.sankhya.util.TimeUtils;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,12 +24,12 @@ public class CriarLancamentoCentralCompras implements TarefaJava {
     private JapeWrapper rateioDAO = JapeFactory.dao("RateioRecDesp");
     private JapeWrapper centroCustoDAO = JapeFactory.dao("CentroResultado");
     private JapeWrapper contaContabilCRDAO = JapeFactory.dao("TGFNATCCCR");
-    private JapeWrapper acessoCaixaPequenoDAO = JapeFactory.dao("AD_ACESSOCAIXAPEQUENO");
     private JapeWrapper parceiroDAO = JapeFactory.dao("Parceiro");
+    private BigDecimal unidade = null;
+    private Timestamp datatipoNegociacao = null;
 
     @Override
     public void executar(ContextoTarefa ct) throws Exception {
-
 
     String aprovacao = (String) ct.getCampo("APROVACAO");
 
@@ -39,9 +40,13 @@ public class CriarLancamentoCentralCompras implements TarefaJava {
 
         DynamicVO parceiroVO = parceiroDAO.findOne("CGC_CPF =?", new Object[]{ct.getCampo("CNPJ")});
         NativeSqlDecorator tipoNegociacaoDecorator = new NativeSqlDecorator("SELECT MAX(DHALTER) AS DHALTER FROM TGFTPV WHERE CODTIPVENDA = :CODTIPVENDA");
-        tipoNegociacaoDecorator.setParametro("CODTIPVENDA", ct.getCampo("TPNEG"));
+        tipoNegociacaoDecorator.setParametro("CODTIPVENDA", ct.getCampo("TPNEG") );
 
         BigDecimal numeroUnicoModelo = null;
+
+        if( tipoNegociacaoDecorator.proximo() ){
+            datatipoNegociacao = tipoNegociacaoDecorator.getValorTimestamp("DHALTER");
+        }
 
         if( ct.getCampo("TOPPROD") != null ){
             numeroUnicoModelo = BigDecimal.valueOf(27840L);
@@ -70,6 +75,10 @@ public class CriarLancamentoCentralCompras implements TarefaJava {
         Double valorUnitario = (Double) ct.getCampo("VLRUNIT");
         campos.put("VLRNOTA", quantidade.multiply(BigDecimal.valueOf(valorUnitario)));
         campos.put("STATUSNOTA", String.valueOf("A"));
+        campos.put("PENDENTE", String.valueOf("S"));
+        campos.put("CODTIPVENDA", BigDecimal.valueOf( Long.parseLong((String) ct.getCampo("TPNEG"))));
+        campos.put("DHTIPVENDA", datatipoNegociacao );
+        campos.put("AD_CODLOT", BigDecimal.valueOf(Long.parseLong( (String) ct.getCampo("COD_LOTACAO"))));
         DynamicVO notaDestino = DynamicVOKt.duplicaRegistro(modeloNotaVO, campos);
         BigDecimal numeroUnicoNota = notaDestino.asBigDecimal("NUNOTA");
 
@@ -87,6 +96,7 @@ public class CriarLancamentoCentralCompras implements TarefaJava {
         itemFCVO.set("VLRUNIT", BigDecimal.valueOf((Double) ct.getCampo("VLRUNIT")));
         itemFCVO.set("VLRTOT", quantidade.multiply(BigDecimal.valueOf(valorUnitario)));
         itemFCVO.set("RESERVA", "N");
+        itemFCVO.set("PENDENTE", "S");
         itemFCVO.set("CODLOCALORIG", produtoVO.asBigDecimal("CODLOCALPADRAO"));
         itemFCVO.save();
 
@@ -97,13 +107,20 @@ public class CriarLancamentoCentralCompras implements TarefaJava {
         rateioFCVO.set("CODNAT", BigDecimal.valueOf( Long.parseLong( (String) ct.getCampo("CODNAT"))));
         rateioFCVO.set("CODCENCUS", BigDecimal.valueOf( Long.parseLong((String) ct.getCampo("CODCENCUS"))));
         rateioFCVO.set("CODPROJ", BigDecimal.valueOf(99990001));
-        DynamicVO acessoCaixaPequenoVO = acessoCaixaPequenoDAO.findOne("CODUSU = ?", new Object[]{AuthenticationInfo.getCurrent().getUserID()});
-        rateioFCVO.set("CODSITE", acessoCaixaPequenoVO.asBigDecimal("CODSITE"));
-        rateioFCVO.set("PERCRATEIO", BigDecimal.valueOf(100));
 
-        DynamicVO centroCustoVO = centroCustoDAO.findByPK(ct.getCampo("CODCENCUS"));
-        DynamicVO contaContabilCRVO = contaContabilCRDAO.findOne("NUCLASSIFICACAO = ?", new Object[]{centroCustoVO.asBigDecimal("AD_NUCLASSIFICACAO")});
-        rateioFCVO.set("CODCTACTB", contaContabilCRVO.asBigDecimal("CODCTACTB") );
+        NativeSqlDecorator unidadeUsuario = new NativeSqlDecorator("SELECT UNIDADE FROM VIEW_USUARIOS_PORTALMGS WHERE CODUSU = :CODUSU AND ROWNUM <= 1");
+        unidadeUsuario.setParametro("CODUSU", ct.getUsuarioLogado() );
+
+
+        if(unidadeUsuario.proximo()){
+            unidade = unidadeUsuario.getValorBigDecimal("UNIDADE");
+        }
+
+        rateioFCVO.set("CODSITE", unidade );
+        rateioFCVO.set("PERCRATEIO", BigDecimal.valueOf(100));
+        BigDecimal codnat = BigDecimal.valueOf( Long.parseLong( (String) ct.getCampo("CODNAT")));
+        DynamicVO contaContabilCRVO = contaContabilCRDAO.findOne("NUCLASSIFICACAO = 1 AND CODNAT = ?", new Object[]{codnat});
+        rateioFCVO.set("CODCTACTB", contaContabilCRVO.asBigDecimal("CODCTACTB"));
         rateioFCVO.set("NUMCONTRATO", BigDecimal.ZERO );
         rateioFCVO.set("CODPARC", notaDestino.asBigDecimal("CODPARC"));
         rateioFCVO.save();
