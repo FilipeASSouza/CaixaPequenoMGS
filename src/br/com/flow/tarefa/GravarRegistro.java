@@ -1,11 +1,11 @@
 package br.com.flow.tarefa;
 
-import br.com.sankhya.bh.TimeUtils;
 import br.com.sankhya.extensions.flow.ContextoTarefa;
 import br.com.sankhya.extensions.flow.TarefaJava;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.jape.wrapper.fluid.FluidCreateVO;
+import br.com.util.ErroUtils;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -38,9 +38,39 @@ public class GravarRegistro implements TarefaJava {
         String vlrunit = String.valueOf(contextoTarefa.getCampo("VLRUNIT"));
         String vlrtot = String.valueOf(contextoTarefa.getCampo("VLRTOT"));
         String codcencus = String.valueOf(contextoTarefa.getCampo("CODCENCUS"));
+        String parceiro = String.valueOf(contextoTarefa.getCampo("PARCEIRO"));
 
         if (vlrestpro.equalsIgnoreCase(String.valueOf("null"))) {
             vlrestpro = String.valueOf("0");
+        }
+        if(numnota.equalsIgnoreCase(String.valueOf("null"))){
+            ErroUtils.disparaErro("Necessário informar o número da nota");
+        }else if(cnpj.length() > 14){
+            ErroUtils.disparaErro("CNPJ são apenas números, fineza verificar!");
+        }else if(cnpj.equalsIgnoreCase(String.valueOf("null"))) {
+            ErroUtils.disparaErro("Necessário informar o CNPJ, fineza verificar!");
+        }else if(parceiro.equalsIgnoreCase(String.valueOf("null"))){
+            ErroUtils.disparaErro("Parceiro informado não está cadastrado, fineza verificar com a MGS!");
+        }else if(chavenfe.equalsIgnoreCase(String.valueOf("null"))){
+            ErroUtils.disparaErro("Chave da nota não foi informada, fineza verificar!");
+        }else if(chavenfe.length() < 44){
+            ErroUtils.disparaErro("Chave da nota informada incorretamente, fineza verificar!");
+        }else if(codlot.equalsIgnoreCase(String.valueOf("null"))){
+            ErroUtils.disparaErro("Lotação não foi informada, fineza verificar!");
+        }else if(codnat.equalsIgnoreCase(String.valueOf("null"))){
+            ErroUtils.disparaErro("Natureza não foi informada, fineza verificar!");
+        }else if(serienota.equalsIgnoreCase(String.valueOf("null"))){
+            ErroUtils.disparaErro("Serie da nota não foi informada, fineza verificar!");
+        }else if(tpneg.equalsIgnoreCase(String.valueOf("null"))){
+            ErroUtils.disparaErro("Tipo de negociação não foi informada, fineza verificar!");
+        }else if(codcencus.equalsIgnoreCase(String.valueOf("null"))){
+            ErroUtils.disparaErro("Centro de custo não foi informado, fineza verificar!");
+        }else if(dtfatem.equals(String.valueOf("null"))){
+            ErroUtils.disparaErro("Data de faturamento não foi informado, fineza verificar!");
+        }else if(dtentrcont.equals(String.valueOf("null"))){
+            ErroUtils.disparaErro("Data contabil de entrada e saida não foi informado, fineza verificar!");
+        }else if(dtmov.equals(String.valueOf("null"))){
+            ErroUtils.disparaErro("Data de movimento não foi informado, fineza verificar!");
         }
 
         JapeWrapper fincaixapqFCVO = JapeFactory.dao("AD_FINCAIXAPQ");
