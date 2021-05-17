@@ -22,9 +22,9 @@ public class GravarRegistro implements TarefaJava {
         String codnat = String.valueOf(contextoTarefa.getCampo("CODNAT"));
         String codproj = String.valueOf(contextoTarefa.getCampo("CODPROJ"));
         String serienota = String.valueOf(contextoTarefa.getCampo("SERIENOTA"));
-        Timestamp dtfatem = Timestamp.valueOf(String.valueOf(contextoTarefa.getCampo("DTFATEM")));
-        Timestamp dtentrcont = Timestamp.valueOf(String.valueOf(contextoTarefa.getCampo("DTENTRCONT")));
-        Timestamp dtmov = Timestamp.valueOf(String.valueOf(contextoTarefa.getCampo("DTMOV")));
+        Object dtfatem = contextoTarefa.getCampo("DTFATEM");
+        Object dtentrcont = contextoTarefa.getCampo("DTENTRCONT");
+        Object dtmov = contextoTarefa.getCampo("DTMOV");
 
         String obs = String.valueOf(contextoTarefa.getCampo("OBS"));
         String chavenfe = String.valueOf(contextoTarefa.getCampo("CHAVENFE"));
@@ -51,9 +51,11 @@ public class GravarRegistro implements TarefaJava {
             ErroUtils.disparaErro("Necessário informar o CNPJ, fineza verificar!");
         }else if(parceiro.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Parceiro informado não está cadastrado, fineza verificar com a MGS!");
-        }else if(chavenfe.equalsIgnoreCase(String.valueOf("null"))){
+        }else if(topserv == null
+                && chavenfe.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Chave da nota não foi informada, fineza verificar!");
-        }else if(chavenfe.length() < 44){
+        }else if(topserv == null
+            && chavenfe.length() < 44){
             ErroUtils.disparaErro("Chave da nota informada incorretamente, fineza verificar!");
         }else if(codlot.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Lotação não foi informada, fineza verificar!");
@@ -65,11 +67,11 @@ public class GravarRegistro implements TarefaJava {
             ErroUtils.disparaErro("Tipo de negociação não foi informada, fineza verificar!");
         }else if(codcencus.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Centro de custo não foi informado, fineza verificar!");
-        }else if(dtfatem.equals(String.valueOf("null"))){
+        }else if(dtfatem == null){
             ErroUtils.disparaErro("Data de faturamento não foi informado, fineza verificar!");
-        }else if(dtentrcont.equals(String.valueOf("null"))){
+        }else if(dtentrcont == null){
             ErroUtils.disparaErro("Data contabil de entrada e saida não foi informado, fineza verificar!");
-        }else if(dtmov.equals(String.valueOf("null"))){
+        }else if(dtmov == null){
             ErroUtils.disparaErro("Data de movimento não foi informado, fineza verificar!");
         }
 

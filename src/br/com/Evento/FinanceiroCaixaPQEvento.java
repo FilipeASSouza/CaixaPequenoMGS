@@ -6,7 +6,7 @@ import br.com.sankhya.jape.event.TransactionContext;
 import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
-import br.com.util.ErroUtils;
+import br.com.util.NativeSqlDecorator;
 
 import java.math.BigDecimal;
 
@@ -20,21 +20,11 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
         validaCamposGravacao(persistenceEvent);
     }
 
-    @Override
     public void beforeUpdate(PersistenceEvent persistenceEvent) { }
-    @Override
     public void beforeDelete(PersistenceEvent persistenceEvent) { }
-
-    @Override
     public void afterInsert(PersistenceEvent persistenceEvent) { }
-
-    @Override
     public void afterUpdate(PersistenceEvent persistenceEvent) { }
-
-    @Override
     public void afterDelete(PersistenceEvent persistenceEvent) { }
-
-    @Override
     public void beforeCommit(TransactionContext transactionContext) { }
 
     public void validaCamposGravacao(PersistenceEvent persistenceEvent) throws Exception {
@@ -82,6 +72,35 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
             throw new Exception("Fineza verificar se as datas foram informadas corretamente!");
         }else if(vo.asBigDecimal("QTDNEG") == null || vo.asBigDecimal("VLRUNIT") == null){
             throw new Exception("Quantidade ou Valor Unitario não informado, fineza verificar novamente!");
+        }
+
+        BigDecimal codigoTipoOperacao = vo.asBigDecimal("TOPPROD") == null ? vo.asBigDecimal("TOPSERV") : vo.asBigDecimal("TOPPROD");
+        NativeSqlDecorator verificarNaturezaTopSQL = new NativeSqlDecorator("SELECT CODNAT FROM VIEW_NATUREZA_CAIXAPEQUENO WHERE CODTIPOPER = :CODTIPOPER AND CODNAT = :CODNAT ");
+        verificarNaturezaTopSQL.setParametro("CODTIPOPER", codigoTipoOperacao );
+        verificarNaturezaTopSQL.setParametro("CODNAT", vo.asBigDecimalOrZero("CODNAT"));
+
+        BigDecimal natureza = null;
+
+        if( verificarNaturezaTopSQL.proximo() ){
+            natureza = verificarNaturezaTopSQL.getValorBigDecimal("CODNAT");
+        }
+
+        if(natureza == null){
+            throw new Exception("Natureza informada incorretamente, fineza verificar!");
+        }
+
+        String registroAnexado = vo.asBigDecimal("IDINSTPRN").toString().concat(String.valueOf("_InstanciaProcesso"));
+        String validaAnexo = null;
+
+        NativeSqlDecorator verificarAnexoSQL = new NativeSqlDecorator("SELECT NUATTACH FROM TSIANX WHERE PKREGISTRO = :PKREGISTRO");
+        verificarAnexoSQL.setParametro("PKREGISTRO", registroAnexado);
+
+        if( verificarAnexoSQL.proximo() ){
+            validaAnexo = verificarAnexoSQL.getValorString("NUATTACH");
+        }
+
+        if( validaAnexo == null ){
+            throw new Exception("Fineza anexar a nota ao lançamento!");
         }
     }
 }

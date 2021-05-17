@@ -40,82 +40,78 @@ public class CentralComprasCRUD {
 
     public void criandoCabeçalho(ContextoTarefa ct) throws Exception {
 
-        String aprovacao = (String) ct.getCampo("APROVACAO");
         BigDecimal codigoAprovador = ct.getUsuarioLogado();
         numeroNota = BigDecimal.valueOf(Long.parseLong((String) ct.getCampo("NUMNOTA")));
 
-        if( aprovacao != null
-                && !aprovacao.equals(String.valueOf("1"))){
+        // Criando o cabeçalho
 
-            // Criando o cabeçalho
+        DynamicVO parceiroVO = parceiroDAO.findOne("CGC_CPF =?", new Object[]{ct.getCampo("CNPJ")});
+        codigoParceiro = parceiroVO.asBigDecimal("CODPARC") != null ? parceiroVO.asBigDecimal("CODPARC") : BigDecimal.ONE;
+        NativeSqlDecorator tipoNegociacaoDecorator = new NativeSqlDecorator("SELECT MAX(DHALTER) AS DHALTER FROM TGFTPV WHERE CODTIPVENDA = :CODTIPVENDA");
+        tipoNegociacaoDecorator.setParametro("CODTIPVENDA", ct.getCampo("TPNEG") );
 
-            DynamicVO parceiroVO = parceiroDAO.findOne("CGC_CPF =?", new Object[]{ct.getCampo("CNPJ")});
-            codigoParceiro = parceiroVO.asBigDecimal("CODPARC") != null ? parceiroVO.asBigDecimal("CODPARC") : BigDecimal.ONE;
-            NativeSqlDecorator tipoNegociacaoDecorator = new NativeSqlDecorator("SELECT MAX(DHALTER) AS DHALTER FROM TGFTPV WHERE CODTIPVENDA = :CODTIPVENDA");
-            tipoNegociacaoDecorator.setParametro("CODTIPVENDA", ct.getCampo("TPNEG") );
+        BigDecimal numeroUnicoModelo = null;
 
-            BigDecimal numeroUnicoModelo = null;
-
-            if( tipoNegociacaoDecorator.proximo() ){
-                datatipoNegociacao = tipoNegociacaoDecorator.getValorTimestamp("DHALTER");
-            }
-
-            JapeWrapper caixapequenoDAO = JapeFactory.dao("AD_FINCAIXAPQ");
-            DynamicVO caixapequenoVO = caixapequenoDAO.findOne("NUMNOTA = ?", new Object[]{numeroNota});
-            codigoUsuario = caixapequenoVO.asBigDecimal("CODUSUARIO");
-
-            if( ct.getCampo("TOPPROD") != null ){
-                numeroUnicoModelo = BigDecimal.valueOf(27840L);
-            }else{
-                numeroUnicoModelo = BigDecimal.valueOf(28168L);
-            }
-
-            DynamicVO modeloNotaVO = cabecalhoNotaDAO.findByPK(new Object[]{numeroUnicoModelo});
-            Map<String, Object> campos = new HashMap();
-            campos.put("NUMNOTA", numeroNota );
-            campos.put("NUMCONTRATO", BigDecimal.ZERO);
-            campos.put("CODEMP", BigDecimal.ONE);
-            campos.put("CODPARC", codigoParceiro );
-            campos.put("CODCENCUS", new BigDecimal(Long.parseLong((String) ct.getCampo("CODCENCUS"))));
-            campos.put("CODNAT", new BigDecimal(Long.parseLong((String) ct.getCampo("CODNAT"))));
-            campos.put("SERIENOTA", ct.getCampo("SERIENOTA"));
-            campos.put("DTENTSAI", ct.getCampo("DTENTRCONT"));
-            campos.put("DTNEG", ct.getCampo("DTMOV"));
-            campos.put("DTFATUR", ct.getCampo("DTFATEM"));
-            campos.put("DTMOV", ct.getCampo("DTMOV"));
-            campos.put("CODPROJ", BigDecimal.valueOf(99990001));
-            campos.put("OBSERVACAO", ct.getCampo("OBS") +" - Justificativa: "+ ct.getCampo("JSTCOMPR"));
-            campos.put("CODUSU", codigoUsuario );
-            campos.put("CODUSUINC", codigoUsuario );
-            BigDecimal quantidade = new BigDecimal(Long.parseLong(String.valueOf(ct.getCampo("QTDNEG"))));
-            Double valorUnitario = (Double) ct.getCampo("VLRUNIT");
-            statusNota = modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(603)) ? String.valueOf("L") : String.valueOf("A");
-            campos.put("VLRNOTA", quantidade.multiply(BigDecimal.valueOf(valorUnitario)));
-            campos.put("STATUSNOTA", statusNota );
-            campos.put("PENDENTE", String.valueOf("S"));
-            campos.put("CODTIPVENDA", new BigDecimal( Long.parseLong((String) ct.getCampo("TPNEG"))));
-            campos.put("DHTIPVENDA", datatipoNegociacao );
-            campos.put("AD_CODLOT", new BigDecimal(Long.parseLong( (String) ct.getCampo("COD_LOTACAO"))));
-            campos.put("CHAVENFE", ct.getCampo("CHAVENFE"));
-            if(modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(613L))){
-                campos.put("NUMNFSE", numeroNota.toString() );
-            }
-            DynamicVO notaDestino = DynamicVOKt.duplicaRegistro(modeloNotaVO, campos);
-            numeroUnicoNota = notaDestino.asBigDecimal("NUNOTA");
-            codigotipoOperacao = notaDestino.asBigDecimal("CODTIPOPER");
-            datatipoNegociacao = notaDestino.asTimestamp("DHTIPOPER");
-
-            // Gravando o Número único da nota
-
-            FluidUpdateVO caixaPequenoFUVO = caixapequenoDAO.prepareToUpdate(caixapequenoVO);
-            caixaPequenoFUVO.set("NUNOTA", this.numeroUnicoNota);
-            caixaPequenoFUVO.set("CODAPROVADOR", codigoAprovador);
-            caixaPequenoFUVO.update();
-
-            BigDecimal idInstanceProcesso = new BigDecimal(String.valueOf(ct.getIdInstanceProcesso()));
-            VariaveisFlow.setVariavel(idInstanceProcesso, new BigDecimal(0), "NUNOTA", numeroUnicoNota);
-
+        if( tipoNegociacaoDecorator.proximo() ){
+            datatipoNegociacao = tipoNegociacaoDecorator.getValorTimestamp("DHALTER");
         }
+
+        JapeWrapper caixapequenoDAO = JapeFactory.dao("AD_FINCAIXAPQ");
+        DynamicVO caixapequenoVO = caixapequenoDAO.findOne("NUMNOTA = ?", new Object[]{numeroNota});
+        codigoUsuario = caixapequenoVO.asBigDecimal("CODUSUARIO");
+
+        if( ct.getCampo("TOPPROD") != null ){
+            numeroUnicoModelo = BigDecimal.valueOf(27840L);
+        }else{
+            numeroUnicoModelo = BigDecimal.valueOf(28168L);
+        }
+
+        DynamicVO modeloNotaVO = cabecalhoNotaDAO.findByPK(new Object[]{numeroUnicoModelo});
+        Map<String, Object> campos = new HashMap();
+        campos.put("NUMNOTA", numeroNota );
+        campos.put("NUMCONTRATO", BigDecimal.ZERO);
+        campos.put("CODEMP", BigDecimal.ONE);
+        campos.put("CODPARC", codigoParceiro );
+        campos.put("CODCENCUS", new BigDecimal(Long.parseLong((String) ct.getCampo("CODCENCUS"))));
+        campos.put("CODNAT", new BigDecimal(Long.parseLong((String) ct.getCampo("CODNAT"))));
+        campos.put("SERIENOTA", ct.getCampo("SERIENOTA"));
+        campos.put("DTENTSAI", ct.getCampo("DTENTRCONT"));
+        campos.put("DTNEG", ct.getCampo("DTMOV"));
+        campos.put("DTFATUR", ct.getCampo("DTFATEM"));
+        campos.put("DTMOV", ct.getCampo("DTMOV"));
+        campos.put("CODPROJ", BigDecimal.valueOf(99990001));
+        campos.put("OBSERVACAO", ct.getCampo("OBS") +" - Justificativa: "+ ct.getCampo("JSTCOMPR"));
+        campos.put("CODUSU", codigoUsuario );
+        campos.put("CODUSUINC", codigoUsuario );
+        BigDecimal quantidade = new BigDecimal(Long.parseLong(String.valueOf(ct.getCampo("QTDNEG"))));
+        Double valorUnitario = (Double) ct.getCampo("VLRUNIT");
+        statusNota = modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(603)) ? String.valueOf("L") : String.valueOf("A");
+        campos.put("VLRNOTA", quantidade.multiply(BigDecimal.valueOf(valorUnitario)));
+        campos.put("STATUSNOTA", statusNota );
+        campos.put("PENDENTE", String.valueOf("S"));
+        campos.put("CODTIPVENDA", new BigDecimal( Long.parseLong((String) ct.getCampo("TPNEG"))));
+        campos.put("DHTIPVENDA", datatipoNegociacao );
+        campos.put("AD_CODLOT", new BigDecimal(Long.parseLong( (String) ct.getCampo("COD_LOTACAO"))));
+        campos.put("CHAVENFE", ct.getCampo("CHAVENFE"));
+        if(modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(613L))){
+            campos.put("NUMNFSE", numeroNota.toString() );
+        }
+        DynamicVO notaDestino = DynamicVOKt.duplicaRegistro(modeloNotaVO, campos);
+        numeroUnicoNota = notaDestino.asBigDecimal("NUNOTA");
+        codigotipoOperacao = notaDestino.asBigDecimal("CODTIPOPER");
+        datatipoNegociacao = notaDestino.asTimestamp("DHTIPOPER");
+
+        // Gravando o Número único da nota
+
+        FluidUpdateVO caixaPequenoFUVO = caixapequenoDAO.prepareToUpdate(caixapequenoVO);
+        caixaPequenoFUVO.set("NUNOTA", this.numeroUnicoNota);
+        caixaPequenoFUVO.set("CODAPROVADOR", codigoAprovador);
+        caixaPequenoFUVO.update();
+
+        BigDecimal idInstanceProcesso = new BigDecimal(String.valueOf(ct.getIdInstanceProcesso()));
+        VariaveisFlow.setVariavel(idInstanceProcesso, new BigDecimal(0), "NUNOTA", numeroUnicoNota);
+
+
     }
 
     public void criandoItens(ContextoTarefa ct) throws Exception{
@@ -244,24 +240,25 @@ public class CentralComprasCRUD {
             File file = new File(caminhoArquivo);
 
             JapeWrapper anexoDAO = JapeFactory.dao("Anexo");
-            FluidCreateVO anexoFCVO = anexoDAO.create();
-            anexoFCVO.set("DTALTER", TimeUtils.getNow());
-            anexoFCVO.set("EDITA","N");
-            anexoFCVO.set("ARQUIVO",  this.numeroUnicoNota.toString() );
-            anexoFCVO.set("DESCRICAO", this.numeroUnicoNota.toString() );
-            anexoFCVO.set("TIPOCONTEUDO","P");
-            anexoFCVO.set("TIPO","N");
-            anexoFCVO.set("CODUSU", this.codigoUsuario );
-            anexoFCVO.set("CONTEUDO", FileUtils.readFileToByteArray(file));
-            anexoFCVO.set("PUBLICO","N");
-            anexoFCVO.set("SEQUENCIAPR", BigDecimal.ZERO );
-            anexoFCVO.set("SEQUENCIA", BigDecimal.ZERO );
-            anexoFCVO.set("DTINCLUSAO",TimeUtils.getNow() );
-            anexoFCVO.set("CODATA", this.numeroUnicoNota );
-            anexoFCVO.set("AD_TIPINCLUSAO", String.valueOf(1) );
-            anexoFCVO.set("AD_NUATTACH", this.numeroUnicoFinanceiro );
-            anexoFCVO.set("AD_CODUSUJOB", BigDecimal.ZERO );
-            DynamicVO save = anexoFCVO.save();
+            FluidCreateVO anexoCentralNotaFCVO = anexoDAO.create();
+            anexoCentralNotaFCVO.set("DTALTER", TimeUtils.getNow());
+            anexoCentralNotaFCVO.set("EDITA","N");
+            anexoCentralNotaFCVO.set("ARQUIVO",  this.numeroUnicoNota.toString() );
+            anexoCentralNotaFCVO.set("DESCRICAO", this.numeroUnicoNota.toString() );
+            anexoCentralNotaFCVO.set("TIPOCONTEUDO","P");
+            anexoCentralNotaFCVO.set("TIPO","N");
+            anexoCentralNotaFCVO.set("CODUSU", this.codigoUsuario );
+            anexoCentralNotaFCVO.set("CONTEUDO", FileUtils.readFileToByteArray(file));
+            anexoCentralNotaFCVO.set("PUBLICO","N");
+            anexoCentralNotaFCVO.set("SEQUENCIAPR", BigDecimal.ZERO );
+            anexoCentralNotaFCVO.set("SEQUENCIA", BigDecimal.ZERO );
+            anexoCentralNotaFCVO.set("DTINCLUSAO",TimeUtils.getNow() );
+            anexoCentralNotaFCVO.set("CODATA", this.numeroUnicoNota );
+            anexoCentralNotaFCVO.set("AD_TIPINCLUSAO", String.valueOf(1) );
+            anexoCentralNotaFCVO.set("AD_NUATTACH", this.numeroUnicoFinanceiro );
+            anexoCentralNotaFCVO.set("AD_CODUSUJOB", BigDecimal.ZERO );
+            anexoCentralNotaFCVO.save();
+
         }
     }
 }

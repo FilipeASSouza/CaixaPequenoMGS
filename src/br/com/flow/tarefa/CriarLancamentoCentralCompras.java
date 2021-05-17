@@ -10,10 +10,15 @@ public class CriarLancamentoCentralCompras implements TarefaJava {
 
         CentralComprasCRUD centralComprasCRUD = new CentralComprasCRUD();
 
-        centralComprasCRUD.criandoCabeçalho(ct);
-        centralComprasCRUD.criandoItens(ct);
-        centralComprasCRUD.criandoRateio(ct);
-        centralComprasCRUD.criandoFinanceiro(ct);
-        centralComprasCRUD.integrandoAnexo(ct);
+        String aprovacao = (String) ct.getCampo("APROVACAO");
+
+        if( !aprovacao.equals(String.valueOf("1"))) {
+
+            centralComprasCRUD.criandoCabeçalho(ct);
+            centralComprasCRUD.criandoItens(ct);
+            centralComprasCRUD.criandoRateio(ct);
+            centralComprasCRUD.criandoFinanceiro(ct);
+            centralComprasCRUD.integrandoAnexo(ct);
+        }
     }
 }
