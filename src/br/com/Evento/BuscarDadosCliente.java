@@ -21,8 +21,9 @@ public class BuscarDadosCliente implements EventoProcessoJava {
 
         Object codigoLotacao = contextoEvento.getCampo("COD_LOTACAO");
         Object cnpj = contextoEvento.getCampo("CNPJ");
+        String cnpjTela = null;
 
-        if (codigoLotacao != null) {
+        if (codigoLotacao != null && cnpj != null) {
 
             NativeSqlDecorator nativeSqlDadosCliente = new NativeSqlDecorator("SELECT AD_NUMCONTRATO FROM AD_TGFLOT LOT LEFT JOIN TGFSIT SIT ON SIT.CODSITE = LOT.CODSITE WHERE CODLOT = :codigoLotacao");
             nativeSqlDadosCliente.setParametro("codigoLotacao", codigoLotacao.toString());
@@ -40,6 +41,29 @@ public class BuscarDadosCliente implements EventoProcessoJava {
             BigDecimal idInstanciaProcesso = new BigDecimal(contextoEvento.getIdInstanceProcesso().toString());
             BigDecimal idInstanciaTarefa = new BigDecimal(0);
             VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "PARCEIRO", String.valueOf(parceiroVO.asString("RAZAOSOCIAL")));
+        }else if(codigoLotacao != null){
+            NativeSqlDecorator verificarCNPJSQL = new NativeSqlDecorator("SELECT TEXTO FROM TWFIVAR WHERE IDINSTPRN = :IDINSTPRN AND NOME = 'CNPJ'");
+            verificarCNPJSQL.setParametro("IDINSTPRN", contextoEvento.getIdInstanceProcesso());
+            if( verificarCNPJSQL.proximo()){
+                cnpjTela = verificarCNPJSQL.getValorString("TEXTO");
+            }
+            NativeSqlDecorator nativeSqlDadosCliente = new NativeSqlDecorator("SELECT AD_NUMCONTRATO FROM AD_TGFLOT LOT LEFT JOIN TGFSIT SIT ON SIT.CODSITE = LOT.CODSITE WHERE CODLOT = :codigoLotacao");
+            nativeSqlDadosCliente.setParametro("codigoLotacao", codigoLotacao.toString());
+
+            if(cnpjTela == null){
+                throw new Exception("Necessario informar o CNPJ, fineza verificar!");
+            }
+
+            DynamicVO parceiroVO = this.parceiroDAO.findOne("CGC_CPF = ?", new Object[]{cnpjTela});
+            if(!nativeSqlDadosCliente.proximo()) {
+                throw new Exception("Não existe um Contrato vinculado a Unidade/ Lotacao " + codigoLotacao.toString() +" ,fineza verificar!");
+            }
+
+            BigDecimal ad_numcontrato = nativeSqlDadosCliente.getValorBigDecimal("AD_NUMCONTRATO");
+            BigDecimal idInstanciaProcesso = new BigDecimal(contextoEvento.getIdInstanceProcesso().toString());
+            BigDecimal idInstanciaTarefa = new BigDecimal(0);
+            VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "PARCEIRO", String.valueOf(parceiroVO.asString("RAZAOSOCIAL")));
+            VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", String.valueOf(ad_numcontrato));
         }
     }
 }

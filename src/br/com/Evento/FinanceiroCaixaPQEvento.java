@@ -102,5 +102,15 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
         if( validaAnexo == null ){
             throw new Exception("Fineza anexar a nota ao lançamento!");
         }
+
+        NativeSqlDecorator verificaRestricaoSerieTop = new NativeSqlDecorator("SELECT CODTIPOPER FROM TGFREP WHERE CODTIPOPER = :CODTIPOPER AND SERIE = :SERIE AND TIPREST = 'S'");
+        verificaRestricaoSerieTop.setParametro("CODTIPOPER", codigoTipoOperacao);
+        verificaRestricaoSerieTop.setParametro("SERIE", vo.asString("SERIENOTA"));
+
+        if(verificaRestricaoSerieTop.proximo()){
+            if(verificaRestricaoSerieTop.getValorBigDecimal("CODTIPOPER") != null ){
+                throw new Exception("Essa serie não pode ser utilizada para esse lançamento, fineza verificar!");
+            }
+        }
     }
 }

@@ -51,10 +51,10 @@ public class GravarRegistro implements TarefaJava {
             ErroUtils.disparaErro("Necessário informar o CNPJ, fineza verificar!");
         }else if(parceiro.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Parceiro informado não está cadastrado, fineza verificar com a MGS!");
-        }else if(topserv == null
+        }else if(topserv.equalsIgnoreCase(String.valueOf("null"))
                 && chavenfe.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Chave da nota não foi informada, fineza verificar!");
-        }else if(topserv == null
+        }else if(topserv.equalsIgnoreCase(String.valueOf("null"))
             && chavenfe.length() < 44){
             ErroUtils.disparaErro("Chave da nota informada incorretamente, fineza verificar!");
         }else if(codlot.equalsIgnoreCase(String.valueOf("null"))){
@@ -66,13 +66,15 @@ public class GravarRegistro implements TarefaJava {
         }else if(tpneg.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Tipo de negociação não foi informada, fineza verificar!");
         }else if(codcencus.equalsIgnoreCase(String.valueOf("null"))){
-            ErroUtils.disparaErro("Centro de custo não foi informado, fineza verificar!");
+            ErroUtils.disparaErro("Centro de resultado não foi informado, fineza verificar!");
         }else if(dtfatem == null){
             ErroUtils.disparaErro("Data de faturamento não foi informado, fineza verificar!");
         }else if(dtentrcont == null){
-            ErroUtils.disparaErro("Data contabil de entrada e saida não foi informado, fineza verificar!");
+            ErroUtils.disparaErro("Data da Entrada Contabil não foi informado, fineza verificar!");
         }else if(dtmov == null){
             ErroUtils.disparaErro("Data de movimento não foi informado, fineza verificar!");
+        }else if(obs.equalsIgnoreCase(String.valueOf("null"))){
+            ErroUtils.disparaErro("Observação deve ser preenchida, fineza verificar!");
         }
 
         JapeWrapper fincaixapqFCVO = JapeFactory.dao("AD_FINCAIXAPQ");
