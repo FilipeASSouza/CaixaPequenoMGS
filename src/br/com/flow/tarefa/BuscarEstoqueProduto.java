@@ -11,7 +11,7 @@ public class BuscarEstoqueProduto implements TarefaJava {
     }
 
     public void executar(ContextoTarefa contextoTarefa) throws Exception {
-        BigDecimal codigoproduto = new BigDecimal(contextoTarefa.getCampo("CODPROD").toString());
+        BigDecimal codigoproduto = new BigDecimal(Long.parseLong(contextoTarefa.getCampo("CODPROD").toString()));
         NativeSqlDecorator consultaSaldoProduto = new NativeSqlDecorator("SELECT DISTINCT NVL( ( EST.ESTOQUE - EST.RESERVADO - EST.WMSBLOQUEADO ), 0 ) ESTOQUEREAL, PRO.CODPROD, PRO.DESCRPROD FROM TGFEST EST INNER JOIN TGFPRO PRO ON PRO.CODPROD = EST.CODPROD WHERE PRO.ATIVO = 'S' AND PRO.USOPROD IN ('S', 'C') AND PRO.CODPROD = :codigoProduto AND ROWNUM < 2");
         consultaSaldoProduto.setParametro("codigoProduto", codigoproduto);
         if (consultaSaldoProduto.proximo()) {
@@ -22,6 +22,5 @@ public class BuscarEstoqueProduto implements TarefaJava {
                 contextoTarefa.setCampo("VLRESTPRO", String.valueOf(new BigDecimal(0)));
             }
         }
-
     }
 }

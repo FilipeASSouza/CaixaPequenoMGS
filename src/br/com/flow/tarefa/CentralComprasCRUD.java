@@ -42,6 +42,7 @@ public class CentralComprasCRUD {
 
         BigDecimal codigoAprovador = ct.getUsuarioLogado();
         numeroNota = BigDecimal.valueOf(Long.parseLong((String) ct.getCampo("NUMNOTA")));
+        BigDecimal chaveRegistro = new BigDecimal(Long.parseLong((String) ct.getIdInstanceProcesso().toString()));
 
         // Criando o cabeçalho
 
@@ -57,7 +58,7 @@ public class CentralComprasCRUD {
         }
 
         JapeWrapper caixapequenoDAO = JapeFactory.dao("AD_FINCAIXAPQ");
-        DynamicVO caixapequenoVO = caixapequenoDAO.findOne("NUMNOTA = ?", new Object[]{numeroNota});
+        DynamicVO caixapequenoVO = caixapequenoDAO.findOne("IDINSTPRN = ?", new Object[]{chaveRegistro});
         codigoUsuario = caixapequenoVO.asBigDecimal("CODUSUARIO");
 
         if( ct.getCampo("TOPPROD") != null ){
@@ -67,6 +68,13 @@ public class CentralComprasCRUD {
         }
 
         DynamicVO modeloNotaVO = cabecalhoNotaDAO.findByPK(new Object[]{numeroUnicoModelo});
+
+        NativeSqlDecorator consultandoDhTipoOperacaoSQL = new NativeSqlDecorator("SELECT MAX(DHALTER) DHALTER FROM TGFTOP WHERE CODTIPOPER = :CODTIPOPER");
+        consultandoDhTipoOperacaoSQL.setParametro("CODTIPOPER", modeloNotaVO.asBigDecimal("CODTIPOPER"));
+        if(consultandoDhTipoOperacaoSQL.proximo()){
+            this.dataTipoOperacao = consultandoDhTipoOperacaoSQL.getValorTimestamp("DHALTER");
+        }
+
         Map<String, Object> campos = new HashMap();
         campos.put("NUMNOTA", numeroNota );
         campos.put("NUMCONTRATO", BigDecimal.ZERO);
@@ -79,6 +87,7 @@ public class CentralComprasCRUD {
         campos.put("DTNEG", ct.getCampo("DTMOV"));
         campos.put("DTFATUR", ct.getCampo("DTFATEM"));
         campos.put("DTMOV", ct.getCampo("DTMOV"));
+        campos.put("DHTIPOPER", this.dataTipoOperacao);
         campos.put("CODPROJ", BigDecimal.valueOf(99990001));
         campos.put("OBSERVACAO", ct.getCampo("OBS") +" - Justificativa: "+ ct.getCampo("JSTCOMPR"));
         campos.put("CODUSU", codigoUsuario );
@@ -99,7 +108,6 @@ public class CentralComprasCRUD {
         DynamicVO notaDestino = DynamicVOKt.duplicaRegistro(modeloNotaVO, campos);
         numeroUnicoNota = notaDestino.asBigDecimal("NUNOTA");
         codigotipoOperacao = notaDestino.asBigDecimal("CODTIPOPER");
-        datatipoNegociacao = notaDestino.asTimestamp("DHTIPOPER");
 
         // Gravando o Número único da nota
 
@@ -110,7 +118,6 @@ public class CentralComprasCRUD {
 
         BigDecimal idInstanceProcesso = new BigDecimal(String.valueOf(ct.getIdInstanceProcesso()));
         VariaveisFlow.setVariavel(idInstanceProcesso, new BigDecimal(0), "NUNOTA", numeroUnicoNota);
-
 
     }
 
@@ -260,5 +267,9 @@ public class CentralComprasCRUD {
             anexoCentralNotaFCVO.save();
 
         }
+    }
+
+    public void criandoLiberacao() throws Exception{
+
     }
 }

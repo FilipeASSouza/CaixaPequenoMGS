@@ -8,7 +8,7 @@ public class BuscarDadosUsuarioLogado {
     }
 
     public String BuscarEmailUsuarioLogado(BigDecimal usuarioLogado) throws Exception {
-        NativeSqlDecorator nativeSqlBuscarDadosUsuario = new NativeSqlDecorator("SELECT \nV.COD_PARC,\nV.EMAIL, \nV.LOGIN CPF,\nV.UNIDADE\nFROM TSIUSU T INNER JOIN VIEW_USUARIOS_PORTALMGS V ON (SUBSTR(T.NOMEUSU, 4, 5)+0 = V.ID_USUARIO)\nWHERE T.CODUSU = :CODUSU");
+        NativeSqlDecorator nativeSqlBuscarDadosUsuario = new NativeSqlDecorator("SELECT NVL( USU.EMAIL, V.EMAIL ) EMAIL FROM VIEW_CAIXAPQ V  LEFT JOIN TSIUSU USU ON USU.CODUSU = V.CODUSU WHERE USU.CODUSU = :CODUSU AND ROWNUM <= 1");
         nativeSqlBuscarDadosUsuario.setParametro("CODUSU", usuarioLogado);
         if (nativeSqlBuscarDadosUsuario.proximo()) {
             String email = nativeSqlBuscarDadosUsuario.getValorString("EMAIL");
