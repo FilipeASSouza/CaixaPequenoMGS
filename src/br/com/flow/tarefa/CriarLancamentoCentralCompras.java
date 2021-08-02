@@ -19,6 +19,7 @@ public class CriarLancamentoCentralCompras implements TarefaJava {
             centralComprasCRUD.criandoRateio(ct);
             centralComprasCRUD.criandoFinanceiro(ct);
             centralComprasCRUD.integrandoAnexo(ct);
+            centralComprasCRUD.criandoLiberacao(ct);
         }
     }
 }

@@ -6,6 +6,7 @@ import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.jape.wrapper.fluid.FluidCreateVO;
 import br.com.util.ErroUtils;
+import com.sankhya.util.TimeUtils;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -25,7 +26,6 @@ public class GravarRegistro implements TarefaJava {
         Object dtfatem = contextoTarefa.getCampo("DTFATEM");
         Object dtentrcont = contextoTarefa.getCampo("DTENTRCONT");
         Object dtmov = contextoTarefa.getCampo("DTMOV");
-
         String obs = String.valueOf(contextoTarefa.getCampo("OBS"));
         String chavenfe = String.valueOf(contextoTarefa.getCampo("CHAVENFE"));
         String topserv = String.valueOf(contextoTarefa.getCampo("TOPSERV"));
@@ -39,6 +39,8 @@ public class GravarRegistro implements TarefaJava {
         String vlrtot = String.valueOf(contextoTarefa.getCampo("VLRTOT"));
         String codcencus = String.valueOf(contextoTarefa.getCampo("CODCENCUS"));
         String parceiro = String.valueOf(contextoTarefa.getCampo("PARCEIRO"));
+        Object justificaCompra = String.valueOf(contextoTarefa.getCampo("JSTCOMPR"));
+        String codigoUsuario = String.valueOf(contextoTarefa.getUsuarioLogado().toString());
 
         if (vlrestpro.equalsIgnoreCase(String.valueOf("null"))) {
             vlrestpro = String.valueOf("0");
@@ -53,28 +55,57 @@ public class GravarRegistro implements TarefaJava {
             ErroUtils.disparaErro("Parceiro informado não está cadastrado, fineza verificar com a MGS!");
         }else if(topserv.equalsIgnoreCase(String.valueOf("null"))
                 && chavenfe.equalsIgnoreCase(String.valueOf("null"))){
-            ErroUtils.disparaErro("Chave da nota não foi informada, fineza verificar!");
+            ErroUtils.disparaErro("Chave NFe não foi informada, fineza verificar!");
         }else if(topserv.equalsIgnoreCase(String.valueOf("null"))
             && chavenfe.length() < 44){
-            ErroUtils.disparaErro("Chave da nota informada incorretamente, fineza verificar!");
+            ErroUtils.disparaErro("Chave NFe informada incorretamente, fineza verificar!");
+        }else if(!topserv.equalsIgnoreCase(String.valueOf(""))
+                && !chavenfe.equalsIgnoreCase(String.valueOf(""))){
+            ErroUtils.disparaErro("Chave NFe foi informada para o processo de serviço, fineza remover!");
         }else if(codlot.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Lotação não foi informada, fineza verificar!");
         }else if(codnat.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Natureza não foi informada, fineza verificar!");
         }else if(serienota.equalsIgnoreCase(String.valueOf("null"))){
-            ErroUtils.disparaErro("Serie da nota não foi informada, fineza verificar!");
-        }else if(tpneg.equalsIgnoreCase(String.valueOf("null"))){
+            ErroUtils.disparaErro("Nº de Série da Nota não foi informada, fineza verificar!");
+        }else if(!topserv.equalsIgnoreCase(String.valueOf(""))
+            && !serienota.equalsIgnoreCase(String.valueOf("NFS"))){
+            ErroUtils.disparaErro("Nº de Série da Nota foi informada incorretamente, fineza verificar!");
+        }else if(!topprod.equalsIgnoreCase(String.valueOf(""))
+                && serienota.equalsIgnoreCase(String.valueOf("NFS"))){
+            ErroUtils.disparaErro("Nº de Série da Nota foi informada incorretamente, fineza verificar!");
+        }else if(tpneg.equalsIgnoreCase(String.valueOf(""))){
             ErroUtils.disparaErro("Tipo de negociação não foi informada, fineza verificar!");
         }else if(codcencus.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Centro de resultado não foi informado, fineza verificar!");
         }else if(dtfatem == null){
-            ErroUtils.disparaErro("Data de faturamento não foi informado, fineza verificar!");
+            ErroUtils.disparaErro("Data do Faturamento/Emissão não foi informado, fineza verificar!");
         }else if(dtentrcont == null){
-            ErroUtils.disparaErro("Data da Entrada Contabil não foi informado, fineza verificar!");
+            ErroUtils.disparaErro("Data da Entrada Contábil não foi informado, fineza verificar!");
         }else if(dtmov == null){
-            ErroUtils.disparaErro("Data de movimento não foi informado, fineza verificar!");
-        }else if(obs.equalsIgnoreCase(String.valueOf("null"))){
+            ErroUtils.disparaErro("Data da Movimentação não foi informado, fineza verificar!");
+        }else if(obs.equalsIgnoreCase(String.valueOf(""))){
             ErroUtils.disparaErro("Observação deve ser preenchida, fineza verificar!");
+        }else if( justificaCompra == null || jstcompr.equalsIgnoreCase("")){
+            ErroUtils.disparaErro("Justificativa não foi informada fineza verificar");
+        }
+
+        //Criar a validação a partir o fechamento contabil
+        if( dtfatem != null && dtmov != null && dtentrcont != null ){
+
+            Timestamp dataFaturamento = (Timestamp) dtfatem;
+            Timestamp dataMovimentacao = (Timestamp) dtmov;
+            Timestamp dataContabil = (Timestamp) dtentrcont;
+            int mesFaturamento = TimeUtils.getMonth(dataFaturamento);
+            int mesMovimentacao = TimeUtils.getMonth(dataMovimentacao);
+            int mesContabil = TimeUtils.getMonth(dataContabil);
+            int mesAtual = TimeUtils.getMonth(TimeUtils.getNow());
+
+            if(mesFaturamento != mesAtual
+                    || mesMovimentacao != mesAtual
+                    || mesContabil != mesAtual ){
+                ErroUtils.disparaErro("Fineza verificar as datas, não é possível realizar um lançamento com a data do mês anterior!");
+            }
         }
 
         JapeWrapper fincaixapqFCVO = JapeFactory.dao("AD_FINCAIXAPQ");
@@ -94,7 +125,7 @@ public class GravarRegistro implements TarefaJava {
         fluidCreateVO.set("DTMOV", Timestamp.valueOf(String.valueOf(dtmov)));
         fluidCreateVO.set("OBS", obs);
 
-        if (topprod != String.valueOf("null")) {
+        if (topprod != String.valueOf("")) {
             fluidCreateVO.set("TOPPROD", new BigDecimal(topprod));
         } else {
             fluidCreateVO.set("TOPSERV", new BigDecimal(topserv));
@@ -109,6 +140,7 @@ public class GravarRegistro implements TarefaJava {
         fluidCreateVO.set("CODCENCUS", new BigDecimal(codcencus));
         fluidCreateVO.set("CNPJ", cnpj);
         fluidCreateVO.set("CHAVENFE", chavenfe);
+        fluidCreateVO.set("CODUSUARIO", BigDecimal.valueOf(Long.parseLong(codigoUsuario)) );
         fluidCreateVO.save();
 
     }
