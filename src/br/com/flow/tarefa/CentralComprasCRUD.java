@@ -90,6 +90,7 @@ public class CentralComprasCRUD {
         cabecalhoNotaFCVO.set("CODTIPOPER", modeloNotaVO.asBigDecimal("CODTIPOPER") );
         cabecalhoNotaFCVO.set("CODEMPNEGOC", BigDecimal.ONE);
         cabecalhoNotaFCVO.set("CIF_FOB", String.valueOf("F"));
+        cabecalhoNotaFCVO.set("RATEADO", String.valueOf("S"));
         cabecalhoNotaFCVO.set("DHTIPOPER", this.dataTipoOperacao );
         cabecalhoNotaFCVO.set("CODPROJ", BigDecimal.valueOf(99990001) );
         cabecalhoNotaFCVO.set("OBSERVACAO", ct.getCampo("OBS") +" - Justificativa: "+ ct.getCampo("JSTCOMPR"));
@@ -230,10 +231,12 @@ public class CentralComprasCRUD {
         financeiroDespesaFCVO.set("DTENTSAI", ct.getCampo("DTENTRCONT"));
         financeiroDespesaFCVO.set("VLRDESDOB", quantidade.multiply(BigDecimal.valueOf(valorUnitario)) );
         financeiroDespesaFCVO.set("ORIGEM", "E");
+        financeiroDespesaFCVO.set("RATEADO", "S");
+        financeiroDespesaFCVO.set("PROVISAO", this.codigotipoOperacao.equals(BigDecimal.valueOf(612L)) ? "S" : "N");
         financeiroDespesaFCVO.set("CODBCO", codigoBanco );
         financeiroDespesaFCVO.set("CODCTABCOINT", codigoConta );
         financeiroDespesaFCVO.set("CODTIPTIT", BigDecimal.ONE );
-        financeiroDespesaFCVO.set("AD_CODSITE", this.unidade);
+        financeiroDespesaFCVO.set("AD_CODSITE", this.unidade );
         financeiroDespesaFCVO.set("RECDESP", new BigDecimal(-1) );
         financeiroDespesaFCVO.set("CODNAT", new BigDecimal( Long.parseLong( (String) ct.getCampo("CODNAT"))) );
         financeiroDespesaFCVO.set("CODCENCUS", BigDecimal.valueOf( Long.parseLong( ct.getCampo("CODCENCUS").toString())) );

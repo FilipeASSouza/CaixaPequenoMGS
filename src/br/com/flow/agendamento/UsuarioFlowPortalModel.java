@@ -21,6 +21,8 @@ public class UsuarioFlowPortalModel {
     BigDecimal codigoGrupoUsuario;
     BigDecimal codigoUsuario;
     BigDecimal codigoParceiro;
+    BigDecimal numeroEquipe;
+    String acesso;
 
     public UsuarioFlowPortalModel() throws Exception {
         this.codigoGrupoUsuario = JapeFactory.dao("ParametroSistema").findByPK(new Object[]{"AD_GRUFLOWPORT", BigDecimal.ZERO}).asBigDecimal("INTEIRO");
@@ -29,17 +31,17 @@ public class UsuarioFlowPortalModel {
 
     public void processarAcesso(BigDecimal idUsuario) throws Exception {
         this.idUsuario = idUsuario;
-        NativeSqlDecorator nativeSqlDecorator = new NativeSqlDecorator("SELECT ACESSO, COD_PARC, UNIDADE FROM VIEW_USUARIOS_PORTALMGS WHERE ID_USUARIO = :ID_USUARIO");
+        NativeSqlDecorator nativeSqlDecorator = new NativeSqlDecorator("SELECT ACESSO, UNIDADE FROM VIEW_USUARIOSPORTAL WHERE ID_USUARIO = :ID_USUARIO");
         nativeSqlDecorator.setParametro("ID_USUARIO", idUsuario);
 
-        while(nativeSqlDecorator.proximo()) {
-            String acesso = nativeSqlDecorator.getValorString("ACESSO");
-            BigDecimal unidade = nativeSqlDecorator.getValorBigDecimal("UNIDADE");
-            this.criarUsuario();
-            this.criarContato();
-            this.ingressarEquipe(unidade, acesso);
-        }
+        this.criarUsuario();
+        this.criarContato();
 
+        while(nativeSqlDecorator.proximo()) {
+            this.acesso = nativeSqlDecorator.getValorString("ACESSO");
+            BigDecimal unidade = nativeSqlDecorator.getValorBigDecimal("UNIDADE");
+            this.ingressarEquipe(unidade, this.acesso);
+        }
     }
 
     private void criarUsuario() throws Exception {
@@ -54,7 +56,6 @@ public class UsuarioFlowPortalModel {
         } else {
             this.codigoUsuario = usuarioVO.asBigDecimal("CODUSU");
         }
-
     }
 
     private void criarContato() throws Exception {
@@ -66,9 +67,9 @@ public class UsuarioFlowPortalModel {
             usuarioFCVO.set("EMAIL", this.idUsuario + "@portal.mgs.srv.br");
             usuarioFCVO.set("SENHAACESSO", StringUtils.toHexString(md5.digest(this.idUsuario.toString().getBytes())));
             usuarioFCVO.set("CODUSU", this.codigoUsuario);
+            usuarioFCVO.set("AD_USUARIOPORTAL", this.idUsuario );
             usuarioFCVO.save();
         }
-
     }
 
     private void ingressarEquipe(BigDecimal unidaadeFaturamento, String acesso) throws Exception {
@@ -76,15 +77,21 @@ public class UsuarioFlowPortalModel {
         if (equipeVO != null) {
             DynamicVO membroEquipeVO = this.membroEquipeDAO.findOne("NUEQUIPE = ?  AND CODMEMBRO = ?", new Object[]{equipeVO.asBigDecimal("NUEQUIPE"), this.codigoUsuario});
             if (membroEquipeVO == null) {
+
+                System.out.println("EQUIPE EXISTE INSERINDO MEMBRO  NA EQUIPE" + equipeVO.asBigDecimal("NUEQUIPE").toString() );
+
                 FluidCreateVO membroEquipeFCVO = this.membroEquipeDAO.create();
                 membroEquipeFCVO.set("TIPOMEMBRO", "U");
                 membroEquipeFCVO.set("INICIOPARTICIPA", TimeUtils.getNow());
                 membroEquipeFCVO.set("NUEQUIPE", equipeVO.asBigDecimal("NUEQUIPE"));
                 membroEquipeFCVO.set("CODMEMBRO", this.codigoUsuario);
-                membroEquipeFCVO.save();
+                DynamicVO save = membroEquipeFCVO.save();
+
+                System.out.println("MEMBRO CRIADO " + save.asBigDecimal("NUEQUIPE").toString() );
             }
         }else if( equipeVO == null ){
-            BigDecimal numeroEquipe = null;
+
+            System.out.println("Cadastrando a unidade na equipe " + unidaadeFaturamento.toString());
 
             NativeSqlDecorator numeroEquipeSQL = new NativeSqlDecorator("SELECT MAX(NUEQUIPE) NUEQUIPE FROM TCSEQP");
             if( numeroEquipeSQL.proximo() ){
@@ -92,36 +99,76 @@ public class UsuarioFlowPortalModel {
             }
 
             NativeSqlDecorator dadosUsuarioMgs = new NativeSqlDecorator("SELECT ID_USUARIO, " +
-                    " LOGIN, " +
                     " ACESSO, " +
-                    " COD_PARC, " +
                     " UNIDADE, " +
-                    " DESCR_UNIDADE, " +
-                    " EMAIL " +
-                    " FROM VIEW_USUARIOS_PORTALMGS WHERE ID_USUARIO = :USUARIO");
+                    " RTRIM( DESCR_UNIDAD ) DESCR_UNIDAD " +
+                    " FROM VIEW_USUARIOSPORTAL WHERE ID_USUARIO = :USUARIO AND UNIDADE = :UNIDADE AND ACESSO = :ACESSO");
             dadosUsuarioMgs.setParametro("USUARIO", this.idUsuario);
+            dadosUsuarioMgs.setParametro("UNIDADE", unidaadeFaturamento );
+            dadosUsuarioMgs.setParametro("ACESSO", acesso );
 
-            if(dadosUsuarioMgs.proximo()){
+            if( dadosUsuarioMgs.proximo() ){
+
+                System.out.println("Criando a equipe na unidade " + unidaadeFaturamento.toString() + " descrição " + dadosUsuarioMgs.getValorString("DESCR_UNIDAD"));
 
                 FluidCreateVO equipeFCVO = equipeDAO.create();
-                equipeFCVO.set("NOME", dadosUsuarioMgs.getValorString("DESCR_UNIDADE"));
-                equipeFCVO.set("TIPOCOORD", String.valueOf("U"));
-                equipeFCVO.set("ATIVA", String.valueOf("S"));
-                equipeFCVO.set("NUEQUIPE", numeroEquipe.add(BigDecimal.ONE));
-                equipeFCVO.set("AD_UNID_FAT", dadosUsuarioMgs.getValorString("UNIDADE"));
-                equipeFCVO.set("AD_TPACESSODV", dadosUsuarioMgs.getValorString("ACESSO"));
+                equipeFCVO.set("NOME", dadosUsuarioMgs.getValorString("DESCR_UNIDAD"));
+                equipeFCVO.set("TIPOCOORD", String.valueOf("U") );
+                equipeFCVO.set("ATIVA", String.valueOf("S") );
+                equipeFCVO.set("NUEQUIPE", numeroEquipe.add(BigDecimal.ONE) );
+                equipeFCVO.set("AD_UNID_FAT", dadosUsuarioMgs.getValorString("UNIDADE") );
+                equipeFCVO.set("AD_TPACESSODV", dadosUsuarioMgs.getValorString("ACESSO") );
                 DynamicVO equipeNovaVO = equipeFCVO.save();
 
-                DynamicVO membroEquipeVO = this.membroEquipeDAO.findOne("NUEQUIPE = ?  AND CODMEMBRO = ?", new Object[]{equipeNovaVO.asBigDecimal("NUEQUIPE"), this.codigoUsuario});
-                if (membroEquipeVO == null) {
-                    FluidCreateVO membroEquipeFCVO = this.membroEquipeDAO.create();
-                    membroEquipeFCVO.set("TIPOMEMBRO", "U");
-                    membroEquipeFCVO.set("INICIOPARTICIPA", TimeUtils.getNow());
-                    membroEquipeFCVO.set("NUEQUIPE", equipeNovaVO.asBigDecimal("NUEQUIPE"));
-                    membroEquipeFCVO.set("CODMEMBRO", this.codigoUsuario);
-                    membroEquipeFCVO.save();
-                }
+                // INSERINDO O MEMBRO NA EQUIPE NOVA
+
+                System.out.println("EQUIPE NAO EXISTE INSERINDO MEMBRO NA EQUIPE " + equipeNovaVO.asBigDecimal("NUEQUIPE").toString());
+
+                FluidCreateVO membroEquipeFCVO = this.membroEquipeDAO.create();
+                membroEquipeFCVO.set("TIPOMEMBRO", "U");
+                membroEquipeFCVO.set("INICIOPARTICIPA", TimeUtils.getNow());
+                membroEquipeFCVO.set("NUEQUIPE", equipeNovaVO.asBigDecimal("NUEQUIPE"));
+                membroEquipeFCVO.set("CODMEMBRO", this.codigoUsuario);
+                membroEquipeFCVO.save();
+
+                System.out.println("FINALIZADO " + equipeNovaVO.asBigDecimal("NUEQUIPE").toString() );
+
             }
         }
     }
+
+    /*
+    Reunião: 18/08/2021
+    Conforme alinhado com o Renato deverá ser implementado a partir da solução proposta pelo Tulio.
+
+    public void removendoMembroEquipe( BigDecimal usuarioPortal ) throws Exception {
+
+        NativeSqlDecorator verificandoEquipesSQL = new NativeSqlDecorator("SELECT\n" +
+                "DISTINCT EQP.NUEQUIPE\n" +
+                ", MEQ.SEQUENCIA\n" +
+                "FROM TCSEQP EQP\n" +
+                "INNER JOIN TCSMEQ MEQ ON EQP.NUEQUIPE = MEQ.NUEQUIPE\n" +
+                "INNER JOIN TGFCTT CTT ON CTT.CODUSU = MEQ.CODMEMBRO AND CTT.CODPARC = 9999\n" +
+                "WHERE\n" +
+                "CTT.AD_USUARIOPORTAL = :CODUSUARIOPORTAL\n" +
+                "AND NOT EXISTS( SELECT\n" +
+                "          1\n" +
+                "          FROM VIEW_USUARIOSPORTAL UP\n" +
+                "          WHERE\n" +
+                "          UP.UNIDADE = EQP.AD_UNID_FAT\n" +
+                "          AND UP.ID_USUARIO = CTT.AD_USUARIOPORTAL )");
+
+
+        verificandoEquipesSQL.setParametro("CODUSUARIOPORTAL", usuarioPortal );
+        while( verificandoEquipesSQL.proximo() ){
+
+            System.out.println("REMOVENDO ACESSO MembroEquipe " + verificandoEquipesSQL.getValorBigDecimal("NUEQUIPE").toString() );
+
+            JapeWrapper membroDAO = JapeFactory.dao("MembroEquipe");
+            membroDAO.deleteByCriteria("NUEQUIPE = ? AND SEQUENCIA = ? "
+                    , new Object[]{ verificandoEquipesSQL.getValorBigDecimal("NUEQUIPE")
+                            , verificandoEquipesSQL.getValorBigDecimal("SEQUENCIA")} );
+
+            System.out.println("ACESSO REMOVIDO " + verificandoEquipesSQL.getValorBigDecimal("NUEQUIPE").toString() );
+        }    */
 }

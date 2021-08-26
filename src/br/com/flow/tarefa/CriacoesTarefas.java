@@ -47,6 +47,7 @@ public class CriacoesTarefas implements TarefaJava {
                 tarefasFCVO.set("DHACEITE", tarefa.asTimestamp("DHACEITE"));
                 tarefasFCVO.set("DHCONCLUSAO", tarefa.asTimestamp("DHCONCLUSAO"));
                 tarefasFCVO.set("CODUSUDONO", usuario.asBigDecimal("CODUSU"));
+                tarefasFCVO.set("SITUACAOEXEC", tarefa.asString("SITUACAOEXEC"));
                 tarefasFCVO.set("CODUSUSOLICITANTE", tarefa.asBigDecimal("CODUSUSOLICITANTE"));
                 tarefasFCVO.save();
             }

@@ -26,6 +26,9 @@ public class BuscarDadosUsuario implements TarefaJava {
             //buscando o acesso
             JapeWrapper acessoCPQDAO = JapeFactory.dao("AD_ACESSOCPQ");
             DynamicVO acessoCPQVO = acessoCPQDAO.findOne("CODUSU = ?", new Object[]{usuarioLogado});
+            if(acessoCPQVO == null){
+                throw new Exception("Usuário não possue o acesso para realizar lançamento, gentileza entrar em contato com o financeiro!");
+            }
 
             //consultando a unidade
             JapeWrapper lotacaoDAO = JapeFactory.dao("TGFLOT");

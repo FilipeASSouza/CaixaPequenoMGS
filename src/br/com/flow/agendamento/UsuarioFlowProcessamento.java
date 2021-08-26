@@ -17,16 +17,33 @@ public class UsuarioFlowProcessamento implements ScheduledAction, AcaoRotinaJava
 
     private void processar() {
         try {
-            NativeSqlDecorator nativeSqlDecorator = new NativeSqlDecorator("SELECT NUNICO, USUARIOPORTAL FROM AD_INTEGRAUSURIOPORTAL WHERE ROWNUM <= 20 ORDER BY DHLANC");
+            NativeSqlDecorator nativeSqlDecorator = new NativeSqlDecorator("SELECT NUNICO, USUARIOPORTAL FROM AD_INTEGRAUSURIOPORTAL WHERE ROWNUM <= 1 ORDER BY DHLANC");
 
             while(nativeSqlDecorator.proximo()) {
+
                 (new UsuarioFlowPortalModel()).processarAcesso(nativeSqlDecorator.getValorBigDecimal("USUARIOPORTAL"));
-                JapeFactory.dao("AD_INTEGRAUSURIOPORTAL").deleteByCriteria("NUNICO = ?", new Object[]{nativeSqlDecorator.getValorBigDecimal("NUNICO")});
+                JapeFactory.dao("AD_INTEGRAUSURIOPORTAL").deleteByCriteria("NUNICO = ?"
+                        , new Object[]{nativeSqlDecorator.getValorBigDecimal("NUNICO")});
+
+                /*
+
+                Reunião: 10/08/2021
+                implementar na terça feira 10/08/2021
+
+                if( nativeSqlDecorator.getValorString("TIPO").equalsIgnoreCase("C")){
+                    (new UsuarioFlowPortalModel()).processarAcesso(nativeSqlDecorator.getValorBigDecimal("USUARIOPORTAL"));
+                    JapeFactory.dao("AD_INTEGRAUSURIOPORTAL").deleteByCriteria("NUNICO = ?", new Object[]{nativeSqlDecorator.getValorBigDecimal("NUNICO")});
+                }else if( nativeSqlDecorator.getValorString("TIPO").equalsIgnoreCase("R") ){
+                    (new UsuarioFlowPortalModel()).removendoMembroEquipe(nativeSqlDecorator.getValorBigDecimal("USUARIOPORTAL"));
+                    JapeFactory.dao("AD_INTEGRAUSURIOPORTAL").deleteByCriteria("NUNICO = ?", new Object[]{nativeSqlDecorator.getValorBigDecimal("NUNICO")});
+                }else if( nativeSqlDecorator.getValorString("TIPO").equalsIgnoreCase("R") ){
+
+                }
+                */
             }
         } catch (Exception var2) {
             var2.printStackTrace();
         }
-
     }
 
     public void doAction(ContextoAcao contextoAcao) throws Exception {

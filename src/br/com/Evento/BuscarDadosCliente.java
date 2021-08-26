@@ -31,6 +31,11 @@ public class BuscarDadosCliente implements EventoProcessoJava {
             if (!nativeSqlDadosCliente.proximo()) {
                 throw new Exception("Não existe um Contrato vinculado a Unidade/ Lotacao " + codigoLotacao.toString() +" ,fineza verificar!");
             }
+
+            if(parceiroVO == null){
+                throw new Exception("Parceiro não foi localizado, fineza entrar em contato com o setor financeiro!");
+            }
+
             BigDecimal ad_numcontrato = nativeSqlDadosCliente.getValorBigDecimal("AD_NUMCONTRATO");
             BigDecimal idInstanciaProcesso = new BigDecimal(contextoEvento.getIdInstanceProcesso().toString());
             BigDecimal idInstanciaTarefa = new BigDecimal(0);
@@ -38,6 +43,9 @@ public class BuscarDadosCliente implements EventoProcessoJava {
             VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", String.valueOf(ad_numcontrato));
         }else if( cnpj != null ) {
             DynamicVO parceiroVO = this.parceiroDAO.findOne("CGC_CPF = ?", new Object[]{String.valueOf(cnpj)});
+            if(parceiroVO == null){
+                throw new Exception("Parceiro não foi localizado, fineza entrar em contato com o setor financeiro!");
+            }
             BigDecimal idInstanciaProcesso = new BigDecimal(contextoEvento.getIdInstanceProcesso().toString());
             BigDecimal idInstanciaTarefa = new BigDecimal(0);
             VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "PARCEIRO", String.valueOf(parceiroVO.asString("RAZAOSOCIAL")));
@@ -57,6 +65,10 @@ public class BuscarDadosCliente implements EventoProcessoJava {
             DynamicVO parceiroVO = this.parceiroDAO.findOne("CGC_CPF = ?", new Object[]{cnpjTela});
             if(!nativeSqlDadosCliente.proximo()) {
                 throw new Exception("Não existe um Contrato vinculado a Unidade/ Lotacao " + codigoLotacao.toString() +" ,fineza verificar!");
+            }
+
+            if(parceiroVO == null){
+                throw new Exception("Parceiro não foi localizado, fineza entrar em contato com o setor financeiro!");
             }
 
             BigDecimal ad_numcontrato = nativeSqlDadosCliente.getValorBigDecimal("AD_NUMCONTRATO");

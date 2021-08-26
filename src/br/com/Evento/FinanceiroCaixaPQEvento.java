@@ -1,14 +1,18 @@
 package br.com.Evento;
 
 import br.com.sankhya.extensions.eventoprogramavel.EventoProgramavelJava;
+import br.com.sankhya.jape.dao.JdbcWrapper;
 import br.com.sankhya.jape.event.PersistenceEvent;
 import br.com.sankhya.jape.event.TransactionContext;
 import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
+import br.com.sankhya.modelcore.helper.SaldoBancarioHelpper;
 import br.com.util.NativeSqlDecorator;
+import com.sankhya.util.TimeUtils;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 
 public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
 
@@ -18,6 +22,10 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
     @Override
     public void beforeInsert(PersistenceEvent persistenceEvent) throws Exception {
         validaCamposGravacao(persistenceEvent);
+
+        System.out.println("TESTE CACHE");
+
+        validaSaldoCaixaPequeno(persistenceEvent);
     }
 
     public void beforeUpdate(PersistenceEvent persistenceEvent) { }
@@ -30,9 +38,13 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
     public void validaCamposGravacao(PersistenceEvent persistenceEvent) throws Exception {
         DynamicVO vo = (DynamicVO) persistenceEvent.getVo();
 
+        System.out.println("TESTE ENTRANDO NA VALIDA CAMPOS GRAVACAO");
+
         if(vo.asString("CNPJ") == null ){
             throw new Exception("CNPJ não informado, fineza verificar novamente!");
         }
+
+        //System.out.println("ENTROU NESSE PONTO CNPJ " + vo.asString("CNPJ") );
 
         DynamicVO parceiroVO = parceiroDAO.findOne("CGC_CPF = ?", new Object[]{vo.asString("CNPJ")});
         if( parceiroVO == null ){
@@ -110,6 +122,46 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
         if(verificaRestricaoSerieTop.proximo()){
             if(verificaRestricaoSerieTop.getValorBigDecimal("CODTIPOPER") != null ){
                 throw new Exception("Essa serie não pode ser utilizada para esse lançamento, fineza verificar!");
+            }
+        }
+    }
+
+
+    public void validaSaldoCaixaPequeno(PersistenceEvent persistenceEvent) throws Exception {
+
+        System.out.println("TESTE ENTRANDO AQUI TIPO NEGOCIACAO ");
+        DynamicVO movimentoBancarioVO = (DynamicVO)persistenceEvent.getVo();
+        JapeWrapper tipoNegociacaoDAO = JapeFactory.dao("TipoNegociacao");
+
+        System.out.println("TIPO DE NEGOCIACAO " + movimentoBancarioVO.asBigDecimal("TPNEG").toString());
+
+        DynamicVO tipoNegociacaoVO = tipoNegociacaoDAO.findOne("CODTIPVENDA = ?",new Object[]{movimentoBancarioVO.asBigDecimal("TPNEG")});
+
+        DynamicVO parcelaVO = JapeFactory.dao("ParcelaPagamento").findOne("CODTIPVENDA = ?"
+                , new Object[]{ tipoNegociacaoVO.asBigDecimal("CODTIPVENDA") });
+
+        System.out.println("CONTA BANCARIA " + parcelaVO.asBigDecimal("CODCTABCOINT"));
+
+        DynamicVO contaVo = JapeFactory.dao("ContaBancaria").findOne("CODCTABCOINT = ?"
+                , new Object[]{ parcelaVO.asBigDecimal("CODCTABCOINT") });
+        BigDecimal limiteSuperior = contaVo.asBigDecimal("AD_VLRLIMIT");
+
+        JdbcWrapper jdbcWrapper = persistenceEvent.getJdbcWrapper();
+        BigDecimal saldoConta = SaldoBancarioHelpper.getSaldoRealAntesDaReferencia(jdbcWrapper, parcelaVO.asBigDecimal("CODCTABCOINT"), new Timestamp(TimeUtils.add(TimeUtils.getNow().getTime(), 1, 6)));
+        if (limiteSuperior != null) {
+
+            System.out.println("LIMITE DA CONTA " + limiteSuperior.toString() + " SALDO " + saldoConta.toString());
+
+            if (BigDecimal.ZERO.compareTo(saldoConta) > 0) {
+                throw new Exception("Saldo da conta insuficiente");
+            }
+
+            if (saldoConta.compareTo(limiteSuperior) > 0) {
+                throw new Exception("Saldo da conta não pode ultrapassar o limite");
+            }
+
+            if( movimentoBancarioVO.asBigDecimal("VLRTOT").compareTo(saldoConta) > 0 ){
+                throw new Exception("Valor ultrapassou o saldo permitido para essa conta, gentileza procurar o setor financeiro!");
             }
         }
     }
