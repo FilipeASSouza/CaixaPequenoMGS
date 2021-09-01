@@ -10,6 +10,7 @@ import com.sankhya.util.TimeUtils;
 
 import java.math.BigDecimal;
 import java.security.MessageDigest;
+import java.util.Collection;
 
 public class UsuarioFlowPortalModel {
 
@@ -140,35 +141,74 @@ public class UsuarioFlowPortalModel {
     /*
     Reunião: 18/08/2021
     Conforme alinhado com o Renato deverá ser implementado a partir da solução proposta pelo Tulio.
+    */
+    public void removendoMembroEquipe( BigDecimal usuarioPortal, String acao ) throws Exception {
 
-    public void removendoMembroEquipe( BigDecimal usuarioPortal ) throws Exception {
-
-        NativeSqlDecorator verificandoEquipesSQL = new NativeSqlDecorator("SELECT\n" +
-                "DISTINCT EQP.NUEQUIPE\n" +
-                ", MEQ.SEQUENCIA\n" +
-                "FROM TCSEQP EQP\n" +
-                "INNER JOIN TCSMEQ MEQ ON EQP.NUEQUIPE = MEQ.NUEQUIPE\n" +
-                "INNER JOIN TGFCTT CTT ON CTT.CODUSU = MEQ.CODMEMBRO AND CTT.CODPARC = 9999\n" +
+        NativeSqlDecorator verificandoCentroDeCustoSQL = new NativeSqlDecorator("SELECT\n" +
+                "US.USUARIO_PORTAL\n" +
+                ", US.CENTRO_CUSTO\n" +
+                ", US.ACAO\n" +
+                "FROM AD_INTEGRAUSURIOPORTAL IU\n" +
+                "INNER JOIN PORTALCLIENTE.UNIDADES_TAREFAS_SANKHYA@DLINK_MGS US ON US.USUARIO_PORTAL = IU.USUARIOPORTAL AND US.ACAO = IU.TIPO\n" +
                 "WHERE\n" +
-                "CTT.AD_USUARIOPORTAL = :CODUSUARIOPORTAL\n" +
-                "AND NOT EXISTS( SELECT\n" +
-                "          1\n" +
-                "          FROM VIEW_USUARIOSPORTAL UP\n" +
-                "          WHERE\n" +
-                "          UP.UNIDADE = EQP.AD_UNID_FAT\n" +
-                "          AND UP.ID_USUARIO = CTT.AD_USUARIOPORTAL )");
+                "IU.USUARIOPORTAL = :USUARIOPORTAL\n" +
+                "AND IU.TIPO = :TIPO");
+        verificandoCentroDeCustoSQL.setParametro("USUARIOPORTAL", usuarioPortal );
+        verificandoCentroDeCustoSQL.setParametro("TIPO", acao );
 
+        while (verificandoCentroDeCustoSQL.proximo()) {
 
-        verificandoEquipesSQL.setParametro("CODUSUARIOPORTAL", usuarioPortal );
-        while( verificandoEquipesSQL.proximo() ){
+            System.out.println("REMOVENDO ACESSO Centro de custo " + verificandoCentroDeCustoSQL.getValorString("CENTRO_CUSTO"));
 
-            System.out.println("REMOVENDO ACESSO MembroEquipe " + verificandoEquipesSQL.getValorBigDecimal("NUEQUIPE").toString() );
+            Collection<DynamicVO> equipesVO = this.equipeDAO.find("AD_UNID_FAT = ? "
+                    , new Object[]{ verificandoCentroDeCustoSQL.getValorString("CENTRO_CUSTO") });
 
-            JapeWrapper membroDAO = JapeFactory.dao("MembroEquipe");
-            membroDAO.deleteByCriteria("NUEQUIPE = ? AND SEQUENCIA = ? "
-                    , new Object[]{ verificandoEquipesSQL.getValorBigDecimal("NUEQUIPE")
-                            , verificandoEquipesSQL.getValorBigDecimal("SEQUENCIA")} );
+            if( equipesVO != null ){
 
-            System.out.println("ACESSO REMOVIDO " + verificandoEquipesSQL.getValorBigDecimal("NUEQUIPE").toString() );
-        }    */
+                    for(DynamicVO equipeVO : equipesVO ){
+
+                        System.out.println("REMOVENDO EQUIPE " + equipeVO.asBigDecimal("NUEQUIPE").toString() );
+
+                        JapeWrapper membroDAO = JapeFactory.dao("MembroEquipe");
+                        membroDAO.deleteByCriteria("NUEQUIPE = ? AND SEQUENCIA = ? "
+                                , new Object[]{ equipeVO.asBigDecimal("NUEQUIPE")
+                                        , equipeVO.asBigDecimal("SEQUENCIA") });
+
+                        System.out.println("ACESSO REMOVIDO " + verificandoCentroDeCustoSQL.getValorBigDecimal("NUEQUIPE").toString());
+                }
+            }
+        }
+    }
+
+    /*
+        Reuniao 31/08/2021
+        Alinhado com o Tulio para manter as informações chave do TIPO da tabela AD_INTEGRAUSURIOPORTAL com a ACAO da tabela UNIDADE_TAREFAS_SANKHYA
+     */
+
+    public void atualizandoMembroEquipe( BigDecimal usuarioPortal, String acao ) throws Exception {
+
+        NativeSqlDecorator verificandoCentroDeCustoSQL = new NativeSqlDecorator("SELECT\n" +
+                "US.USUARIO_PORTAL\n" +
+                ", US.CENTRO_CUSTO\n" +
+                ", US.ACAO\n" +
+                "FROM AD_INTEGRAUSURIOPORTAL IU\n" +
+                "INNER JOIN PORTALCLIENTE.UNIDADES_TAREFAS_SANKHYA@DLINK_MGS US ON US.USUARIO_PORTAL = IU.USUARIOPORTAL AND US.ACAO = IU.TIPO\n" +
+                "WHERE\n" +
+                "IU.USUARIOPORTAL = :USUARIOPORTAL\n" +
+                "AND IU.TIPO = :TIPO");
+        verificandoCentroDeCustoSQL.setParametro("USUARIOPORTAL", usuarioPortal );
+        verificandoCentroDeCustoSQL.setParametro("TIPO", acao );
+
+        while (verificandoCentroDeCustoSQL.proximo()) {
+
+            NativeSqlDecorator verificandoAcessoCentroDeCustoSQL = new NativeSqlDecorator("SELECT ACESSO, UNIDADE FROM VIEW_USUARIOSPORTAL WHERE ID_USUARIO = :ID_USUARIO");
+            verificandoAcessoCentroDeCustoSQL.setParametro("ID_USUARIO", usuarioPortal );
+
+            while( verificandoAcessoCentroDeCustoSQL.proximo() ){
+                String acesso = verificandoAcessoCentroDeCustoSQL.getValorString("ACESSO");
+                BigDecimal unidade = verificandoAcessoCentroDeCustoSQL.getValorBigDecimal("UNIDADE");
+                this.ingressarEquipe( unidade, acesso );
+            }
+        }
+    }
 }
