@@ -4,47 +4,145 @@ import br.com.sankhya.extensions.eventoprogramavel.EventoProgramavelJava;
 import br.com.sankhya.jape.dao.JdbcWrapper;
 import br.com.sankhya.jape.event.PersistenceEvent;
 import br.com.sankhya.jape.event.TransactionContext;
+import br.com.sankhya.jape.sql.NativeSql;
 import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.modelcore.helper.SaldoBancarioHelpper;
+import br.com.sankhya.modelcore.util.EntityFacadeFactory;
 import br.com.util.NativeSqlDecorator;
 import com.sankhya.util.TimeUtils;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.util.Collection;
 
 public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
 
-    private JapeWrapper parceiroDAO = JapeFactory.dao("Parceiro");
-    private JapeWrapper centroResultadoDAO = JapeFactory.dao("CentroResultado");
+    private JapeWrapper parceiroDAO = JapeFactory.dao("Parceiro");//TGFPAR
+    private JapeWrapper centroResultadoDAO = JapeFactory.dao("CentroResultado");//TSICUS
+    private JapeWrapper financeiroDAO = JapeFactory.dao("Financeiro");//TGFFIN
+    private JapeWrapper anexoSistemaDAO = JapeFactory.dao("AnexoSistema");//TSIANX
+    private JapeWrapper instanciaTarefaDAO = JapeFactory.dao("InstanciaTarefa");//TWFITAR
+    private JapeWrapper instanciaVariavelDAO = JapeFactory.dao("InstanciaVariavel");//TWFIVAR
+    private JapeWrapper liberacaoEventoDAO = JapeFactory.dao("LiberacaoLimite");//TSILIB
+    private JdbcWrapper jdbcWrapper = EntityFacadeFactory.getCoreFacade().getJdbcWrapper();
 
     @Override
     public void beforeInsert(PersistenceEvent persistenceEvent) throws Exception {
         validaCamposGravacao(persistenceEvent);
 
-        System.out.println("TESTE CACHE");
-
         validaSaldoCaixaPequeno(persistenceEvent);
     }
 
     public void beforeUpdate(PersistenceEvent persistenceEvent) { }
-    public void beforeDelete(PersistenceEvent persistenceEvent) { }
+    public void beforeDelete(PersistenceEvent persistenceEvent) throws Exception{
+
+        DynamicVO vo = (DynamicVO) persistenceEvent.getVo();
+        BigDecimal numeroUnico = vo.asBigDecimalOrZero("NUNOTA");
+        BigDecimal nroinstanciaProcesso = vo.asBigDecimalOrZero("IDINSTPRN");
+        BigDecimal codigoTipoOperacaoProduto = vo.asBigDecimalOrZero("TOPPROD");
+
+        if( !numeroUnico.equals(BigDecimal.ZERO) ){
+            numeroUnico = vo.asBigDecimalOrZero("NUNOTA");
+
+            //Excluindo o lançamento do portal de compras
+            excluindoLancamentoCentral(numeroUnico, jdbcWrapper );
+
+            if( codigoTipoOperacaoProduto == null
+                    || codigoTipoOperacaoProduto.equals(String.valueOf(""))
+                    || codigoTipoOperacaoProduto.equals(String.valueOf("null")) ){
+
+                liberacaoEventoDAO.deleteByCriteria("NUCHAVE = ?"
+                        , new Object[]{ numeroUnico } );
+            }
+
+            financeiroDAO.deleteByCriteria("NUNOTA = ?"
+                    , numeroUnico );
+        }
+
+        if( !nroinstanciaProcesso.equals(BigDecimal.ZERO)){
+            nroinstanciaProcesso = vo.asBigDecimalOrZero("IDINSTPRN");
+
+            Collection<DynamicVO> instanciasProcessosVOS = instanciaTarefaDAO.find("IDINSTPRN = ?"
+                    , new Object[]{nroinstanciaProcesso});
+
+            if( instanciasProcessosVOS != null ){
+
+                for(DynamicVO instanciaProcessoVO : instanciasProcessosVOS){
+                    instanciaTarefaDAO.deleteByCriteria("IDINSTPRN = ?"
+                            , new Object[]{nroinstanciaProcesso});
+                }
+            }
+
+
+            Collection<DynamicVO> instanciasVariaveisVOS = instanciaVariavelDAO.find("IDINSTPRN = ?"
+                    , new Object[]{nroinstanciaProcesso});
+
+            if( instanciasVariaveisVOS != null ){
+
+                for( DynamicVO instanciaVariavelVO : instanciasVariaveisVOS ){
+                    instanciaVariavelDAO.deleteByCriteria("IDINSTPRN = ?"
+                            , new Object[]{ nroinstanciaProcesso });
+                }
+            }
+        }
+
+        String pkRegistro = nroinstanciaProcesso.toString().concat(String.valueOf("_InstanciaProcesso"));
+        Collection <DynamicVO> anexosSistemaVO = anexoSistemaDAO.find("PKREGISTRO = ?", new Object[]{pkRegistro});
+
+        if( anexosSistemaVO != null ){
+
+            for(DynamicVO anexoSistemaVO : anexosSistemaVO ){
+                anexoSistemaDAO.deleteByCriteria("NUATTACH = ?"
+                        , new Object[]{ anexoSistemaVO.asBigDecimalOrZero("NUATTACH") });
+            }
+        }
+    }
+
     public void afterInsert(PersistenceEvent persistenceEvent) { }
     public void afterUpdate(PersistenceEvent persistenceEvent) { }
     public void afterDelete(PersistenceEvent persistenceEvent) { }
     public void beforeCommit(TransactionContext transactionContext) { }
 
+    public void excluindoLancamentoCentral(BigDecimal numeroUnico, JdbcWrapper jdbcWrapper) throws Exception{
+        NativeSql cabecalhoNotaSql = new NativeSql(jdbcWrapper);
+        NativeSql itemNotaSQL = new NativeSql(jdbcWrapper);
+
+        try{
+
+            if(!numeroUnico.equals(BigDecimal.ZERO)){
+
+                cabecalhoNotaSql.appendSql("DELETE FROM TGFCAB WHERE NUNOTA = :NUNOTA");
+                cabecalhoNotaSql.setNamedParameter("NUNOTA", numeroUnico );
+                cabecalhoNotaSql.executeUpdate();
+
+                itemNotaSQL.appendSql("DELETE FROM TGFITE WHERE NUNOTA = :NUNOTA");
+                itemNotaSQL.setNamedParameter("NUNOTA", numeroUnico );
+                itemNotaSQL.executeUpdate();
+            }
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }finally {
+
+            if(cabecalhoNotaSql != null){
+                NativeSql.releaseResources(cabecalhoNotaSql);
+            }
+
+            if(itemNotaSQL != null){
+                NativeSql.releaseResources(cabecalhoNotaSql);
+            }
+            jdbcWrapper.closeSession();
+        }
+    }
+
     public void validaCamposGravacao(PersistenceEvent persistenceEvent) throws Exception {
         DynamicVO vo = (DynamicVO) persistenceEvent.getVo();
-
-        System.out.println("TESTE ENTRANDO NA VALIDA CAMPOS GRAVACAO");
 
         if(vo.asString("CNPJ") == null ){
             throw new Exception("CNPJ não informado, fineza verificar novamente!");
         }
-
-        //System.out.println("ENTROU NESSE PONTO CNPJ " + vo.asString("CNPJ") );
 
         DynamicVO parceiroVO = parceiroDAO.findOne("CGC_CPF = ?", new Object[]{vo.asString("CNPJ")});
         if( parceiroVO == null ){
@@ -129,18 +227,13 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
 
     public void validaSaldoCaixaPequeno(PersistenceEvent persistenceEvent) throws Exception {
 
-        System.out.println("TESTE ENTRANDO AQUI TIPO NEGOCIACAO ");
         DynamicVO movimentoBancarioVO = (DynamicVO)persistenceEvent.getVo();
         JapeWrapper tipoNegociacaoDAO = JapeFactory.dao("TipoNegociacao");
-
-        System.out.println("TIPO DE NEGOCIACAO " + movimentoBancarioVO.asBigDecimal("TPNEG").toString());
 
         DynamicVO tipoNegociacaoVO = tipoNegociacaoDAO.findOne("CODTIPVENDA = ?",new Object[]{movimentoBancarioVO.asBigDecimal("TPNEG")});
 
         DynamicVO parcelaVO = JapeFactory.dao("ParcelaPagamento").findOne("CODTIPVENDA = ?"
                 , new Object[]{ tipoNegociacaoVO.asBigDecimal("CODTIPVENDA") });
-
-        System.out.println("CONTA BANCARIA " + parcelaVO.asBigDecimal("CODCTABCOINT"));
 
         DynamicVO contaVo = JapeFactory.dao("ContaBancaria").findOne("CODCTABCOINT = ?"
                 , new Object[]{ parcelaVO.asBigDecimal("CODCTABCOINT") });
@@ -149,8 +242,6 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
         JdbcWrapper jdbcWrapper = persistenceEvent.getJdbcWrapper();
         BigDecimal saldoConta = SaldoBancarioHelpper.getSaldoRealAntesDaReferencia(jdbcWrapper, parcelaVO.asBigDecimal("CODCTABCOINT"), new Timestamp(TimeUtils.add(TimeUtils.getNow().getTime(), 1, 6)));
         if (limiteSuperior != null) {
-
-            System.out.println("LIMITE DA CONTA " + limiteSuperior.toString() + " SALDO " + saldoConta.toString());
 
             if (BigDecimal.ZERO.compareTo(saldoConta) > 0) {
                 throw new Exception("Saldo da conta insuficiente");

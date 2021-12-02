@@ -1,38 +1,23 @@
-package br.com.flow.agendamento;
+package br.com.flow.acao;
 
+import br.com.flow.agendamento.UsuarioFlowPortalModel;
+import br.com.sankhya.extensions.actionbutton.AcaoRotinaJava;
+import br.com.sankhya.extensions.actionbutton.ContextoAcao;
 import br.com.sankhya.jape.dao.JdbcWrapper;
 import br.com.sankhya.jape.sql.NativeSql;
-import br.com.sankhya.jape.util.JapeSessionContext;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
-import com.sankhya.util.TimeUtils;
-import org.cuckoo.core.ScheduledAction;
-import org.cuckoo.core.ScheduledActionContext;
-import org.springframework.jms.IllegalStateException;
 
-import java.math.BigDecimal;
 import java.sql.ResultSet;
-import java.sql.Timestamp;
 
-public class UsuarioFlowProcessamento implements ScheduledAction{
+public class UsuarioFlowProcessamentoAcao implements AcaoRotinaJava {
 
     private JdbcWrapper jdbcWrapper = EntityFacadeFactory.getCoreFacade().getJdbcWrapper();
     private NativeSql nativeSql = null;
 
-    public void onTime(ScheduledActionContext scheduledActionContext) {
-        try{
-            this.setup();
-            this.processar();
-        }catch(Exception e){
-            e.printStackTrace();
-        }
-    }
-
-    public void setup() {
-        JapeSessionContext.putProperty("usuario_logado", BigDecimal.ZERO);
-        JapeSessionContext.putProperty("emp_usu_logado", BigDecimal.ZERO);
-        JapeSessionContext.putProperty("dh_atual", new Timestamp(System.currentTimeMillis()));
-        JapeSessionContext.putProperty("d_atual", new Timestamp(TimeUtils.getToday()));
+    @Override
+    public void doAction(ContextoAcao contextoAcao) {
+        this.processar();
     }
 
     private void processar() {
