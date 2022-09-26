@@ -1,5 +1,6 @@
 package br.com.util;
 
+import br.com.sankhya.jape.dao.JdbcWrapper;
 import br.com.sankhya.jape.sql.NativeSql;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
 
@@ -8,6 +9,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 
 public class NativeSqlDecorator {
@@ -16,77 +18,129 @@ public class NativeSqlDecorator {
     private String sql;
     private boolean aberto = false;
     ResultSet resultSet;
+    JdbcWrapper jdbcWrapper;
+
 
     private NativeSqlDecorator() {
+
     }
 
     public NativeSqlDecorator(String sql) {
-        this.iniciar();
-        this.nativeSql.appendSql(sql);
+        this.jdbcWrapper = EntityFacadeFactory.getDWFFacade().getJdbcWrapper();
+        iniciar();
+        nativeSql.appendSql(sql);
+        System.out.println("Inicializado " + this + "jdbc=" + this.jdbcWrapper.toString());
     }
 
-    public boolean proximo() throws Exception {
-        if (!this.aberto) {
-            this.executar();
-            this.aberto = true;
-        }
+    public NativeSqlDecorator(String sql, JdbcWrapper jdbc) {
+        this.jdbcWrapper = jdbc;
+        iniciar();
+        nativeSql.appendSql(sql);
+        System.out.println("Inicializado " + this + "jdbc=" + this.jdbcWrapper.toString());
+    }
 
-        return this.resultSet.next();
+    //    public NativeSqlDecorator(String sql){
+//        EntityFacadeFactory.getDWFFacade().getJdbcWrapper()
+//        iniciar();
+//        nativeSql.appendSql(sql);
+//    }
+    public NativeSqlDecorator(Object objetobase, String arquivo) throws Exception {
+        this.jdbcWrapper = EntityFacadeFactory.getDWFFacade().getJdbcWrapper();
+        iniciar();
+
+        //nativeSql.appendSql(getSqlResource(objetobase, arquivo));
+        nativeSql.loadSql(objetobase.getClass(), arquivo);
+        System.out.println("Inicializado " + this + "jdbc=" + this.jdbcWrapper.toString());
+    }
+
+    public NativeSqlDecorator(Object objetobase, String arquivo, JdbcWrapper jdbc) throws Exception {
+        this.jdbcWrapper = jdbc;
+        iniciar();
+
+        //nativeSql.appendSql(getSqlResource(objetobase, arquivo));
+        nativeSql.loadSql(objetobase.getClass(), arquivo);
+        System.out.println("Inicializado " + this + "jdbc=" + this.jdbcWrapper.toString());
+    }
+
+
+    public boolean proximo() throws Exception {
+        if (!aberto) {
+            executar();
+            aberto = true;
+        }
+        return resultSet.next();
     }
 
     public boolean loop() throws Exception {
-        return this.proximo();
+        return proximo();
     }
 
-    public NativeSqlDecorator(Object objetobase, String arquivo) throws Exception {
-        this.iniciar();
-        this.nativeSql.loadSql(objetobase.getClass(), arquivo);
+
+    public void cleanParameters() throws SQLException {
+        if (resultSet != null) {
+            resultSet.close();
+            aberto = false;
+        }
+        nativeSql.cleanParameters();
     }
 
     public NativeSqlDecorator setParametro(String nome, Object valor) {
-        this.nativeSql.setNamedParameter(nome, valor);
+
+        nativeSql.setNamedParameter(nome, valor);
         return this;
     }
 
     public BigDecimal getValorBigDecimal(String campo) throws Exception {
-        return this.resultSet.getBigDecimal(campo);
+        return resultSet.getBigDecimal(campo);
     }
 
     public String getValorString(String campo) throws Exception {
-        return this.resultSet.getString(campo);
+        return resultSet.getString(campo);
     }
 
     private Boolean getValorBoolean(String campo) throws Exception {
-        return this.resultSet.getBoolean(campo);
+        return resultSet.getBoolean(campo);
     }
 
     public Timestamp getValorTimestamp(String campo) throws Exception {
-        return this.resultSet.getTimestamp(campo);
+        return resultSet.getTimestamp(campo);
     }
 
     public int getValorInt(String campo) throws Exception {
-        return this.resultSet.getInt(campo);
+        return resultSet.getInt(campo);
     }
 
     private float getValorFloat(String campo) throws Exception {
-        return this.resultSet.getFloat(campo);
+        return resultSet.getFloat(campo);
     }
 
+
     private void iniciar() {
-        this.nativeSql = new NativeSql(EntityFacadeFactory.getDWFFacade().getJdbcWrapper());
+        nativeSql = new NativeSql(jdbcWrapper);
+        nativeSql.setReuseStatements(true);
     }
 
     public void executar() throws Exception {
-        this.resultSet = this.nativeSql.executeQuery();
-        if (this.resultSet != null) {
-            this.aberto = true;
+        resultSet = nativeSql.executeQuery();
+        if (resultSet != null) {
+            aberto = true;
         }
-
     }
 
     public void atualizar() throws Exception {
-        this.nativeSql.executeUpdate();
+        nativeSql.executeUpdate();
     }
+
+    public void close() throws Exception {
+        if (resultSet != null) {
+            resultSet.close();
+        }
+        if (nativeSql != null) {
+            NativeSql.releaseResources(nativeSql);
+        }
+        System.out.println("finalizado " + this + "jdbc=" + this.jdbcWrapper.toString());
+    }
+
 
     private String getSqlResource(Object objetobase, String arquivo) throws Exception {
         InputStream in = objetobase.getClass().getResourceAsStream(arquivo);
