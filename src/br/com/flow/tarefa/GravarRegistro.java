@@ -2,14 +2,9 @@ package br.com.flow.tarefa;
 
 import br.com.sankhya.extensions.flow.ContextoTarefa;
 import br.com.sankhya.extensions.flow.TarefaJava;
-import br.com.sankhya.jape.dao.JdbcWrapper;
-import br.com.sankhya.jape.event.PersistenceEvent;
-import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
-import br.com.sankhya.jape.wrapper.JapeWrapperImpl;
 import br.com.sankhya.jape.wrapper.fluid.FluidCreateVO;
-import br.com.sankhya.modelcore.helper.SaldoBancarioHelpper;
 import br.com.util.ErroUtils;
 import com.sankhya.util.TimeUtils;
 
@@ -64,7 +59,7 @@ public class GravarRegistro implements TarefaJava {
         }else if(topserv.equalsIgnoreCase(String.valueOf("null"))
             && chavenfe.length() < 44){
             ErroUtils.disparaErro("Chave NFe informada incorretamente, fineza verificar!");
-        }else if(!topserv.equalsIgnoreCase(String.valueOf(""))
+        }else if(!topserv.equalsIgnoreCase(String.valueOf("null"))
                 && !chavenfe.equalsIgnoreCase(String.valueOf(""))){
             ErroUtils.disparaErro("Chave NFe foi informada para o processo de serviço, fineza remover!");
         }else if(codlot.equalsIgnoreCase(String.valueOf("null"))){
@@ -73,13 +68,13 @@ public class GravarRegistro implements TarefaJava {
             ErroUtils.disparaErro("Natureza não foi informada, fineza verificar!");
         }else if(serienota.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Nº de Série da Nota não foi informada, fineza verificar!");
-        }else if(!topserv.equalsIgnoreCase(String.valueOf(""))
+        }else if(!topserv.equalsIgnoreCase(String.valueOf("null"))
             && !serienota.equalsIgnoreCase(String.valueOf("NFS"))){
             ErroUtils.disparaErro("Nº de Série da Nota foi informada incorretamente, fineza verificar!");
-        }else if(!topprod.equalsIgnoreCase(String.valueOf(""))
+        }else if(!topprod.equalsIgnoreCase(String.valueOf("null"))
                 && serienota.equalsIgnoreCase(String.valueOf("NFS"))){
             ErroUtils.disparaErro("Nº de Série da Nota foi informada incorretamente, fineza verificar!");
-        }else if(tpneg.equalsIgnoreCase(String.valueOf(""))){
+        }else if(tpneg.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Tipo de negociação não foi informada, fineza verificar!");
         }else if(codcencus.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Centro de resultado não foi informado, fineza verificar!");
@@ -89,9 +84,9 @@ public class GravarRegistro implements TarefaJava {
             ErroUtils.disparaErro("Data da Entrada Contábil não foi informado, fineza verificar!");
         }else if(dtmov == null){
             ErroUtils.disparaErro("Data da Movimentação não foi informado, fineza verificar!");
-        }else if(obs.equalsIgnoreCase(String.valueOf(""))){
+        }else if(obs.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Observação deve ser preenchida, fineza verificar!");
-        }else if( justificaCompra == null || jstcompr.equalsIgnoreCase("")){
+        }else if( justificaCompra == null || jstcompr.equalsIgnoreCase("null")){
             ErroUtils.disparaErro("Justificativa não foi informada fineza verificar");
         }
 
