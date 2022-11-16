@@ -15,6 +15,10 @@ public class GravarRegistro implements TarefaJava {
 
     public void executar(ContextoTarefa contextoTarefa) throws Exception {
 
+        gravarRegistro(contextoTarefa);
+    }
+
+    private static void gravarRegistro(ContextoTarefa contextoTarefa) throws Exception {
         String numnota = String.valueOf(contextoTarefa.getCampo("NUMNOTA"));
         String codemp = String.valueOf(contextoTarefa.getCampo("CODEMP"));
         String numcontr = String.valueOf(contextoTarefa.getCampo("NUMCONTR"));
@@ -37,6 +41,7 @@ public class GravarRegistro implements TarefaJava {
         String vlrestpro = String.valueOf(contextoTarefa.getCampo("VLRESTPRO"));
         String vlrunit = String.valueOf(contextoTarefa.getCampo("VLRUNIT"));
         String vlrtot = String.valueOf(contextoTarefa.getCampo("VLRTOT"));
+        String valorDescontoTotal = String.valueOf(contextoTarefa.getCampo("VLRTOT"));
         String codcencus = String.valueOf(contextoTarefa.getCampo("CODCENCUS"));
         String parceiro = String.valueOf(contextoTarefa.getCampo("PARCEIRO"));
         Object justificaCompra = String.valueOf(contextoTarefa.getCampo("JSTCOMPR"));
@@ -59,7 +64,7 @@ public class GravarRegistro implements TarefaJava {
         }else if(topserv.equalsIgnoreCase(String.valueOf("null"))
             && chavenfe.length() < 44){
             ErroUtils.disparaErro("Chave NFe informada incorretamente, fineza verificar!");
-        }else if(!topserv.equalsIgnoreCase(String.valueOf("null"))
+        }else if(!topserv.equalsIgnoreCase(String.valueOf(""))
                 && !chavenfe.equalsIgnoreCase(String.valueOf(""))){
             ErroUtils.disparaErro("Chave NFe foi informada para o processo de serviço, fineza remover!");
         }else if(codlot.equalsIgnoreCase(String.valueOf("null"))){
@@ -68,10 +73,10 @@ public class GravarRegistro implements TarefaJava {
             ErroUtils.disparaErro("Natureza não foi informada, fineza verificar!");
         }else if(serienota.equalsIgnoreCase(String.valueOf("null"))){
             ErroUtils.disparaErro("Nº de Série da Nota não foi informada, fineza verificar!");
-        }else if(!topserv.equalsIgnoreCase(String.valueOf("null"))
+        }else if(!topserv.equalsIgnoreCase(String.valueOf(""))
             && !serienota.equalsIgnoreCase(String.valueOf("NFS"))){
             ErroUtils.disparaErro("Nº de Série da Nota foi informada incorretamente, fineza verificar!");
-        }else if(!topprod.equalsIgnoreCase(String.valueOf("null"))
+        }else if(!topprod.equalsIgnoreCase(String.valueOf(""))
                 && serienota.equalsIgnoreCase(String.valueOf("NFS"))){
             ErroUtils.disparaErro("Nº de Série da Nota foi informada incorretamente, fineza verificar!");
         }else if(tpneg.equalsIgnoreCase(String.valueOf("null"))){
@@ -137,11 +142,11 @@ public class GravarRegistro implements TarefaJava {
         fluidCreateVO.set("VLRESTPRO", new BigDecimal(vlrestpro));
         fluidCreateVO.set("VLRUNIT", new BigDecimal(vlrunit));
         fluidCreateVO.set("VLRTOT", new BigDecimal(vlrtot));
+        fluidCreateVO.set("VLRDESCTOT", new BigDecimal(valorDescontoTotal));
         fluidCreateVO.set("CODCENCUS", new BigDecimal(codcencus));
         fluidCreateVO.set("CNPJ", cnpj);
         fluidCreateVO.set("CHAVENFE", chavenfe);
         fluidCreateVO.set("CODUSUARIO", BigDecimal.valueOf(Long.parseLong(codigoUsuario)) );
         fluidCreateVO.save();
-
     }
 }

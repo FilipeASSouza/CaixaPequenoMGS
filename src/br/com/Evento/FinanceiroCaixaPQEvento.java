@@ -131,7 +131,7 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
             }
 
             if(itemNotaSQL != null){
-                NativeSql.releaseResources(cabecalhoNotaSql);
+                NativeSql.releaseResources(itemNotaSQL);
             }
             jdbcWrapper.closeSession();
         }
@@ -185,41 +185,69 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
         }
 
         BigDecimal codigoTipoOperacao = vo.asBigDecimal("TOPPROD") == null ? vo.asBigDecimal("TOPSERV") : vo.asBigDecimal("TOPPROD");
-        NativeSqlDecorator verificarNaturezaTopSQL = new NativeSqlDecorator("SELECT CODNAT FROM VIEW_NATUREZA_CAIXAPEQUENO WHERE CODTIPOPER = :CODTIPOPER AND CODNAT = :CODNAT ");
-        verificarNaturezaTopSQL.setParametro("CODTIPOPER", codigoTipoOperacao );
-        verificarNaturezaTopSQL.setParametro("CODNAT", vo.asBigDecimalOrZero("CODNAT"));
-
+        NativeSqlDecorator verificarNaturezaTopSQL = null;
         BigDecimal natureza = null;
+        try{
 
-        if( verificarNaturezaTopSQL.proximo() ){
-            natureza = verificarNaturezaTopSQL.getValorBigDecimal("CODNAT");
-        }
+            verificarNaturezaTopSQL = new NativeSqlDecorator("SELECT CODNAT FROM VIEW_NATUREZA_CAIXAPEQUENO WHERE CODTIPOPER = :CODTIPOPER AND CODNAT = :CODNAT ", this.jdbcWrapper);
+            verificarNaturezaTopSQL.setParametro("CODTIPOPER", codigoTipoOperacao );
+            verificarNaturezaTopSQL.setParametro("CODNAT", vo.asBigDecimalOrZero("CODNAT"));
 
-        if(natureza == null){
-            throw new Exception("Natureza informada incorretamente, fineza verificar!");
+            if( verificarNaturezaTopSQL.proximo() ){
+                natureza = verificarNaturezaTopSQL.getValorBigDecimal("CODNAT");
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new Exception("Restrições no tipo de operação, natureza informada incorretamente. Fineza verificar!");
+        } finally {
+            if(verificarNaturezaTopSQL != null){
+                verificarNaturezaTopSQL.close();
+            }
         }
 
         String registroAnexado = vo.asBigDecimal("IDINSTPRN").toString().concat(String.valueOf("_InstanciaProcesso"));
+
+        NativeSqlDecorator verificarAnexoSQL = null;
         String validaAnexo = null;
 
-        NativeSqlDecorator verificarAnexoSQL = new NativeSqlDecorator("SELECT NUATTACH FROM TSIANX WHERE PKREGISTRO = :PKREGISTRO");
-        verificarAnexoSQL.setParametro("PKREGISTRO", registroAnexado);
+        try{
 
-        if( verificarAnexoSQL.proximo() ){
-            validaAnexo = verificarAnexoSQL.getValorString("NUATTACH");
+            verificarAnexoSQL = new NativeSqlDecorator("SELECT NUATTACH FROM TSIANX WHERE PKREGISTRO = :PKREGISTRO", this.jdbcWrapper);
+            verificarAnexoSQL.setParametro("PKREGISTRO", registroAnexado);
+
+            if( verificarAnexoSQL.proximo() ){
+                validaAnexo = verificarAnexoSQL.getValorString("NUATTACH");
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new Exception("Fineza anexar a nota ao lançamento!");
+        }finally {
+            if (verificarAnexoSQL != null){
+                verificarAnexoSQL.close();
+            }
         }
 
-        if( validaAnexo == null ){
+        if( validaAnexo == null){
             throw new Exception("Fineza anexar a nota ao lançamento!");
         }
 
-        NativeSqlDecorator verificaRestricaoSerieTop = new NativeSqlDecorator("SELECT CODTIPOPER FROM TGFREP WHERE CODTIPOPER = :CODTIPOPER AND SERIE = :SERIE AND TIPREST = 'S'");
-        verificaRestricaoSerieTop.setParametro("CODTIPOPER", codigoTipoOperacao);
-        verificaRestricaoSerieTop.setParametro("SERIE", vo.asString("SERIENOTA"));
+        NativeSqlDecorator verificaRestricaoSerieTop = null;
+        try{
 
-        if(verificaRestricaoSerieTop.proximo()){
-            if(verificaRestricaoSerieTop.getValorBigDecimal("CODTIPOPER") != null ){
-                throw new Exception("Essa serie não pode ser utilizada para esse lançamento, fineza verificar!");
+            verificaRestricaoSerieTop = new NativeSqlDecorator("SELECT CODTIPOPER FROM TGFREP WHERE CODTIPOPER = :CODTIPOPER AND SERIE = :SERIE AND TIPREST = 'S'", this.jdbcWrapper);
+            verificaRestricaoSerieTop.setParametro("CODTIPOPER", codigoTipoOperacao);
+            verificaRestricaoSerieTop.setParametro("SERIE", vo.asString("SERIENOTA"));
+
+            if(verificaRestricaoSerieTop.proximo()){
+                if(verificaRestricaoSerieTop.getValorBigDecimal("CODTIPOPER") != null ){
+                    throw new Exception("Restrições no tipo de operação, essa serie não pode ser utilizada para esse lançamento. Fineza verificar!");
+                }
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }finally {
+            if (verificaRestricaoSerieTop != null){
+                verificaRestricaoSerieTop.close();
             }
         }
     }

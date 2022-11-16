@@ -1,5 +1,6 @@
 package br.com.flow.tarefa;
 
+import br.com.sankhya.extensions.actionbutton.QueryExecutor;
 import br.com.sankhya.extensions.flow.ContextoTarefa;
 import br.com.sankhya.jape.core.JapeSession;
 import br.com.sankhya.jape.vo.DynamicVO;
@@ -24,7 +25,6 @@ public class CentralComprasCRUD {
     private JapeWrapper itemDAO = JapeFactory.dao("ItemNota");
     private JapeWrapper produtoDAO = JapeFactory.dao("Produto");
     private JapeWrapper rateioDAO = JapeFactory.dao("RateioRecDesp");
-    private JapeWrapper contaContabilCRDAO = JapeFactory.dao("TGFNATCCCR");
     private JapeWrapper parceiroDAO = JapeFactory.dao("Parceiro");
     private BigDecimal unidade = null;
     private Timestamp datatipoNegociacao = null;
@@ -36,6 +36,8 @@ public class CentralComprasCRUD {
     private String statusNota = null;
     private BigDecimal codigoUsuario = null;
     private BigDecimal numeroUnicoFinanceiro = null;
+    private BigDecimal valorDesconto = null;
+    private BigDecimal valorTotal = null;
 
     public void criandoCabeçalho(ContextoTarefa ct) throws Exception {
 
@@ -48,14 +50,16 @@ public class CentralComprasCRUD {
 
         DynamicVO parceiroVO = parceiroDAO.findOne("CGC_CPF =?", new Object[]{ct.getCampo("CNPJ")});
         codigoParceiro = parceiroVO.asBigDecimal("CODPARC") != null ? parceiroVO.asBigDecimal("CODPARC") : BigDecimal.ONE;
-        NativeSqlDecorator tipoNegociacaoDecorator = new NativeSqlDecorator("SELECT MAX(DHALTER) AS DHALTER FROM TGFTPV WHERE CODTIPVENDA = :CODTIPVENDA");
-        tipoNegociacaoDecorator.setParametro("CODTIPVENDA", ct.getCampo("TPNEG") );
+
+        QueryExecutor consultaTipoNegociacao = ct.getQuery();
+        consultaTipoNegociacao.setParam("CODTIPVENDA", ct.getCampo("TPNEG"));
+        consultaTipoNegociacao.nativeSelect("SELECT MAX(DHALTER) AS DHALTER FROM TGFTPV WHERE CODTIPVENDA = {CODTIPVENDA}");
+        if (consultaTipoNegociacao.next()){
+            datatipoNegociacao = consultaTipoNegociacao.getTimestamp("DHALTER");
+        }
+        consultaTipoNegociacao.close();
 
         BigDecimal numeroUnicoModelo = null;
-
-        if( tipoNegociacaoDecorator.proximo() ){
-            datatipoNegociacao = tipoNegociacaoDecorator.getValorTimestamp("DHALTER");
-        }
 
         JapeWrapper caixapequenoDAO = JapeFactory.dao("AD_FINCAIXAPQ");
         DynamicVO caixapequenoVO = caixapequenoDAO.findOne("IDINSTPRN = ?", new Object[]{chaveRegistro});
@@ -66,14 +70,18 @@ public class CentralComprasCRUD {
         }else{
             numeroUnicoModelo = BigDecimal.valueOf(554470L);
         }
+        BigDecimal codigoTipoOperacao = BigDecimal.valueOf(Long.parseLong(ct.getCampo("TOPSERV").toString().equalsIgnoreCase("") ? ct.getCampo("TOPPROD").toString() : ct.getCampo("TOPSERV").toString()));
 
         DynamicVO modeloNotaVO = cabecalhoNotaDAO.findByPK(new Object[]{numeroUnicoModelo});
+        modeloNotaVO.setProperty("CODTIPOPER", codigoTipoOperacao);
 
-        NativeSqlDecorator consultandoDhTipoOperacaoSQL = new NativeSqlDecorator("SELECT MAX(DHALTER) DHALTER FROM TGFTOP WHERE CODTIPOPER = :CODTIPOPER");
-        consultandoDhTipoOperacaoSQL.setParametro("CODTIPOPER", modeloNotaVO.asBigDecimal("CODTIPOPER"));
-        if(consultandoDhTipoOperacaoSQL.proximo()){
-            this.dataTipoOperacao = consultandoDhTipoOperacaoSQL.getValorTimestamp("DHALTER");
+        QueryExecutor consultaTipoOperacao = ct.getQuery();
+        consultaTipoOperacao.setParam("CODTIPOPER", modeloNotaVO.asBigDecimal("CODTIPOPER"));
+        consultaTipoOperacao.nativeSelect("SELECT MAX(DHALTER) DHALTER FROM TGFTOP WHERE CODTIPOPER = {CODTIPOPER}");
+        if (consultaTipoOperacao.next()){
+            this.dataTipoOperacao = consultaTipoOperacao.getTimestamp("DHALTER");
         }
+        consultaTipoOperacao.close();
 
         FluidCreateVO cabecalhoNotaFCVO = cabecalhoNotaDAO.create();
         cabecalhoNotaFCVO.set("NUMNOTA", numeroNota );
@@ -96,10 +104,15 @@ public class CentralComprasCRUD {
         cabecalhoNotaFCVO.set("OBSERVACAO", ct.getCampo("OBS") +" - Justificativa: "+ ct.getCampo("JSTCOMPR"));
         cabecalhoNotaFCVO.set("CODUSU", codigoUsuario );
         cabecalhoNotaFCVO.set("CODUSUINC", codigoUsuario );
+
         BigDecimal quantidade = new BigDecimal(Long.parseLong(String.valueOf(ct.getCampo("QTDNEG"))));
         Double valorUnitario = (Double) ct.getCampo("VLRUNIT");
+        valorDesconto = new BigDecimal(Double.valueOf(ct.getCampo("VLRDESCTOT").toString()));
+        valorTotal = quantidade.multiply(BigDecimal.valueOf(valorUnitario)).subtract(valorDesconto);
         statusNota = modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(603)) ? String.valueOf("L") : String.valueOf("A");
-        cabecalhoNotaFCVO.set("VLRNOTA", quantidade.multiply(BigDecimal.valueOf(valorUnitario)));
+
+        cabecalhoNotaFCVO.set("VLRNOTA", valorTotal );
+        cabecalhoNotaFCVO.set("VLRDESCTOT", valorDesconto);
         cabecalhoNotaFCVO.set("STATUSNOTA", statusNota );
         cabecalhoNotaFCVO.set("PENDENTE", String.valueOf("N"));
         cabecalhoNotaFCVO.set("CODTIPVENDA", new BigDecimal( Long.parseLong((String) ct.getCampo("TPNEG"))));
@@ -160,7 +173,7 @@ public class CentralComprasCRUD {
         itemFCVO.set("ATUALESTOQUE", BigDecimal.ZERO);
         itemFCVO.set("STATUSNOTA", this.statusNota );
         itemFCVO.set("USOPROD", produtoVO.asString("USOPROD"));
-        itemFCVO.set("VLRUNIT", BigDecimal.valueOf((Double) ct.getCampo("VLRUNIT")));
+        itemFCVO.set("VLRUNIT", BigDecimal.valueOf(valorUnitario));
         itemFCVO.set("VLRTOT", quantidade.multiply(BigDecimal.valueOf(valorUnitario)));
         itemFCVO.set("RESERVA", "N");
         itemFCVO.set("PENDENTE", "N");
@@ -174,53 +187,36 @@ public class CentralComprasCRUD {
         FluidCreateVO rateioFCVO = rateioDAO.create();
         rateioFCVO.set("ORIGEM", String.valueOf("E"));
         rateioFCVO.set("NUFIN", this.numeroUnicoNota );
-        rateioFCVO.set("CODNAT", BigDecimal.valueOf( Long.parseLong( (String) ct.getCampo("CODNAT"))));
-        rateioFCVO.set("CODCENCUS", BigDecimal.valueOf( Long.parseLong(ct.getCampo("CODCENCUS").toString())));
-        rateioFCVO.set("CODPROJ", BigDecimal.valueOf(20001));
-
-        NativeSqlDecorator unidadeUsuario = new NativeSqlDecorator("SELECT LOT.CODSITE FROM AD_TGFLOT LOT WHERE CODLOT = :CODLOT");
-        unidadeUsuario.setParametro("CODLOT", BigDecimal.valueOf(Long.parseLong( (String) ct.getCampo("COD_LOTACAO"))) );
-
-        if(unidadeUsuario.proximo()){
-            unidade = unidadeUsuario.getValorBigDecimal("CODSITE");
-        }
-
-        rateioFCVO.set("CODSITE", this.unidade );
-        rateioFCVO.set("PERCRATEIO", BigDecimal.valueOf(100));
-        BigDecimal codnat = BigDecimal.valueOf( Long.parseLong( (String) ct.getCampo("CODNAT")));
-        DynamicVO contaContabilCRVO = contaContabilCRDAO.findOne("NUCLASSIFICACAO = 1 AND CODNAT = ?", new Object[]{codnat});
-        rateioFCVO.set("CODCTACTB", contaContabilCRVO.asBigDecimal("CODCTACTB"));
-        rateioFCVO.set("NUMCONTRATO", new BigDecimal(Long.parseLong((String) ct.getCampo("NUMCONTR"))) );
+        rateioFCVO.set("CODNAT", BigDecimal.valueOf( Long.parseLong( (String) ct.getCampo("NATUREZARAT"))));
+        rateioFCVO.set("CODCENCUS", BigDecimal.valueOf( Long.parseLong(ct.getCampo("CENTRORESULTADORAT").toString())));
+        rateioFCVO.set("CODPROJ", BigDecimal.valueOf( Long.parseLong(ct.getCampo("CODPROJRATEIO").toString())));
+        rateioFCVO.set("CODSITE", BigDecimal.valueOf( Long.parseLong(ct.getCampo("CODSITRATEIO").toString())));
+        rateioFCVO.set("PERCRATEIO", BigDecimal.valueOf( ((Double) ct.getCampo("PERCRATEIO")).longValue()));
+        rateioFCVO.set("CODCTACTB", BigDecimal.valueOf( Long.parseLong(ct.getCampo("CODCTARATEIO").toString())));
+        rateioFCVO.set("NUMCONTRATO", new BigDecimal(Long.parseLong((String) ct.getCampo("NUMCONTR"))));
         rateioFCVO.set("CODPARC", this.codigoParceiro );
         rateioFCVO.save();
     }
 
     public void criandoFinanceiro(ContextoTarefa ct) throws Exception{
 
-        BigDecimal quantidade = BigDecimal.valueOf(Long.parseLong(String.valueOf(ct.getCampo("QTDNEG"))));
-        Double valorUnitario = (Double) ct.getCampo("VLRUNIT");
-
-        NativeSqlDecorator unidadeUsuario = new NativeSqlDecorator("SELECT LOT.CODSITE FROM AD_TGFLOT LOT WHERE CODLOT = :CODLOT");
-        unidadeUsuario.setParametro("CODLOT", BigDecimal.valueOf(Long.parseLong( (String) ct.getCampo("COD_LOTACAO"))) );
-
-        if(unidadeUsuario.proximo()){
-            unidade = unidadeUsuario.getValorBigDecimal("CODSITE");
-        }
+        this.unidade = BigDecimal.valueOf(Long.parseLong(ct.getCampo("UNID_FATURAMENTO").toString()));
 
         //Criando o registro na movimentação financeira
 
         JapeWrapper financeiroDAO = JapeFactory.dao("Financeiro");//TGFFIN
 
-        NativeSqlDecorator dadosFinanceirosNegociacao = new NativeSqlDecorator("SELECT CODCTABCOINT, CODBCOPAD FROM TGFPPG WHERE CODTIPVENDA = :CODTIPVENDA");
-        dadosFinanceirosNegociacao.setParametro("CODTIPVENDA", ct.getCampo("TPNEG") );
-
         BigDecimal codigoBanco = null;
         BigDecimal codigoConta = null;
 
-        if(dadosFinanceirosNegociacao.proximo()){
-            codigoConta = dadosFinanceirosNegociacao.getValorBigDecimal("CODCTABCOINT");
-            codigoBanco = dadosFinanceirosNegociacao.getValorBigDecimal("CODBCOPAD");
+        QueryExecutor consultaFinanceiroNegociacao = ct.getQuery();
+        consultaFinanceiroNegociacao.setParam("CODTIPVENDA", ct.getCampo("TPNEG"));
+        consultaFinanceiroNegociacao.nativeSelect("SELECT CODCTABCOINT, CODBCOPAD FROM TGFPPG WHERE CODTIPVENDA = {CODTIPVENDA}");
+        if (consultaFinanceiroNegociacao.next()){
+            codigoConta = consultaFinanceiroNegociacao.getBigDecimal("CODCTABCOINT");
+            codigoBanco = consultaFinanceiroNegociacao.getBigDecimal("CODBCOPAD");
         }
+        consultaFinanceiroNegociacao.close();
 
         //DESPESA
         FluidCreateVO financeiroDespesaFCVO = financeiroDAO.create();
@@ -229,7 +225,7 @@ public class CentralComprasCRUD {
         financeiroDespesaFCVO.set("DTVENC", ct.getCampo("DTMOV"));
         financeiroDespesaFCVO.set("DTNEG", ct.getCampo("DTMOV") );
         financeiroDespesaFCVO.set("DTENTSAI", ct.getCampo("DTENTRCONT"));
-        financeiroDespesaFCVO.set("VLRDESDOB", quantidade.multiply(BigDecimal.valueOf(valorUnitario)) );
+        financeiroDespesaFCVO.set("VLRDESDOB", this.valorTotal );
         financeiroDespesaFCVO.set("ORIGEM", "E");
         financeiroDespesaFCVO.set("RATEADO", "S");
         financeiroDespesaFCVO.set("PROVISAO", this.codigotipoOperacao.equals(BigDecimal.valueOf(612L)) ? "S" : "N");
@@ -303,14 +299,15 @@ public class CentralComprasCRUD {
 
         JapeWrapper liberacaoCascataDAO = JapeFactory.dao("LiberacaoCascata");
         Collection<DynamicVO> listaLiberacaoCascataVO = liberacaoCascataDAO.find("CODTIPOPER = ? "
-                , new Object[]{BigDecimal.valueOf(613L)});
+                , new Object[]{this.codigotipoOperacao});
 
         //verificando se a operacao e 613(serviço)
-        if(this.codigotipoOperacao.equals(BigDecimal.valueOf(613L))){
+        if(this.codigotipoOperacao.equals(BigDecimal.valueOf(613L))
+                || this.codigotipoOperacao.equals(BigDecimal.valueOf(612L)) ){
 
             if(listaLiberacaoCascataVO != null){
 
-                for(DynamicVO listaLiberacao : listaLiberacaoCascataVO){
+                for(int i = 0; i < listaLiberacaoCascataVO.size(); i++){
 
                     Boolean confirmando = (Boolean) JapeSession.getProperty("CabecalhoNota.confirmando.nota", true);
 
@@ -324,13 +321,13 @@ public class CentralComprasCRUD {
                     liberacaoFCVO.set("DHSOLICIT", TimeUtils.getNow());
                     liberacaoFCVO.set("VLRLIMITE", BigDecimal.ZERO);
                     liberacaoFCVO.set("VLRATUAL", BigDecimal.ONE);
-                    liberacaoFCVO.set("SEQCASCATA", BigDecimal.ONE );
-                    liberacaoFCVO.set("SEQUENCIA", BigDecimal.ZERO );
+                    liberacaoFCVO.set("SEQCASCATA", BigDecimal.valueOf(Long.parseLong(String.valueOf(i))) );
+                    liberacaoFCVO.set("SEQUENCIA", BigDecimal.valueOf(Long.parseLong(String.valueOf(i))) );
                     liberacaoFCVO.set("NUCLL", BigDecimal.ZERO );
                     liberacaoFCVO.set("CODUSULIB", BigDecimal.valueOf(447L));
                     liberacaoFCVO.set("ORDEM", BigDecimal.valueOf(2L));
                     liberacaoFCVO.set("OBSERVACAO", String.valueOf("Automacao Caixa Pequeno"));
-                    liberacaoFCVO.set("CODTIPOPER", BigDecimal.valueOf(613L));
+                    liberacaoFCVO.set("CODTIPOPER", this.codigotipoOperacao);
                     liberacaoFCVO.set("VLRLIBERADO", BigDecimal.ZERO);
                     liberacaoFCVO.set("CODCENCUS", BigDecimal.valueOf( Long.parseLong(ct.getCampo("CODCENCUS").toString())));
                     liberacaoFCVO.save();

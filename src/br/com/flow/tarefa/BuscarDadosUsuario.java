@@ -39,8 +39,6 @@ public class BuscarDadosUsuario implements TarefaJava {
             JapeWrapper parametrosCPDAO = JapeFactory.dao("AD_PARAMCP");
             DynamicVO parametrosVO = parametrosCPDAO.findOne("SEQUENCIA = ?", new Object[]{BigDecimal.ONE});
 
-            //String emailTesouraria = "tesouraria@mgs.srv.br";
-            //String emailContabilidade = "contabilidade@mgs.srv.br";
             VariaveisFlow.setVariavel(new BigDecimal(idInstanceProcesso.toString()), BigDecimal.ZERO, "EMAILUSU", String.valueOf(email));
             VariaveisFlow.setVariavel(new BigDecimal(idInstanceProcesso.toString()), BigDecimal.ZERO, "EMAILTES", parametrosVO.asString("EMAILTES"));
             VariaveisFlow.setVariavel(new BigDecimal(idInstanceProcesso.toString()), BigDecimal.ZERO, "EMAILCOT", parametrosVO.asString("EMAILCOT"));

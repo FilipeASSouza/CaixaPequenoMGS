@@ -89,7 +89,8 @@ public class BuscarDadosCliente implements EventoProcessoJava {
         BigDecimal paramCentroResultado = null;
         BigDecimal paramCodigoLotacao = null;
         BigDecimal paramCodigoNatureza = null;
-        BigDecimal paramValorRateio = BigDecimal.valueOf(Long.parseLong(contextoEvento.getCampo("VLRTOT").toString()));
+        BigDecimal valorDesconto = new BigDecimal(Double.valueOf(contextoEvento.getCampo("VLRDESCTOT").toString()));
+        BigDecimal paramValorRateio = BigDecimal.valueOf(Long.parseLong(contextoEvento.getCampo("VLRTOT").toString())).subtract(valorDesconto);
 
         if (codigoLotacaoEvento == null || codigoLotacaoEvento.toString().equalsIgnoreCase("null")) {
             QueryExecutor consultaCodigoLotacao = contextoEvento.getQuery();
