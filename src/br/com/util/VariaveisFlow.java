@@ -11,6 +11,13 @@ import java.util.Collection;
 
 public class VariaveisFlow {
 
+    public static final String MENSAGEM_PARAMETRO = "Parametro incorreto ou não encontrado, Fineza entrar em contato com o Tesouraria MGS!";
+    public static final String PARCEIRO_NAO_ENCONTRADO = "Parceiro não foi localizado, fineza entrar em contato com o setor Tesouraria MGS!";
+    public static final String NOTA_SEM_ANEXO = "Fineza anexar a nota ao lançamento!";
+    public static final String CENTRO_RESULTADO_INATIVO = "Centro de resultado esta inativo, favor informar outro centro de resultado!";
+    public static final String CENTRO_RESULTADO_NAO_ANALITICO = "Centro de resultado informado esta incorreto, favor informar um centro de resultado analitico!";
+    public static final String SERIE_NOTA_INCORRETA = "Nº de Série da Nota foi informada incorretamente, fineza verificar!";
+
     public VariaveisFlow() {
     }
 

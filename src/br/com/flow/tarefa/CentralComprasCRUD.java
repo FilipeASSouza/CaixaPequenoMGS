@@ -9,7 +9,6 @@ import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.jape.wrapper.fluid.FluidCreateVO;
 import br.com.sankhya.jape.wrapper.fluid.FluidUpdateVO;
 import br.com.sankhya.modelcore.util.SWRepositoryUtils;
-import br.com.util.NativeSqlDecorator;
 import br.com.util.VariaveisFlow;
 import com.sankhya.util.TimeUtils;
 import org.apache.commons.io.FileUtils;
@@ -183,19 +182,26 @@ public class CentralComprasCRUD {
 
     public void criandoRateio(ContextoTarefa ct) throws Exception{
 
-        // Criando o Rateio
-        FluidCreateVO rateioFCVO = rateioDAO.create();
-        rateioFCVO.set("ORIGEM", String.valueOf("E"));
-        rateioFCVO.set("NUFIN", this.numeroUnicoNota );
-        rateioFCVO.set("CODNAT", BigDecimal.valueOf( Long.parseLong( (String) ct.getCampo("NATUREZARAT"))));
-        rateioFCVO.set("CODCENCUS", BigDecimal.valueOf( Long.parseLong(ct.getCampo("CENTRORESULTADORAT").toString())));
-        rateioFCVO.set("CODPROJ", BigDecimal.valueOf( Long.parseLong(ct.getCampo("CODPROJRATEIO").toString())));
-        rateioFCVO.set("CODSITE", BigDecimal.valueOf( Long.parseLong(ct.getCampo("CODSITRATEIO").toString())));
-        rateioFCVO.set("PERCRATEIO", BigDecimal.valueOf( ((Double) ct.getCampo("PERCRATEIO")).longValue()));
-        rateioFCVO.set("CODCTACTB", BigDecimal.valueOf( Long.parseLong(ct.getCampo("CODCTARATEIO").toString())));
-        rateioFCVO.set("NUMCONTRATO", new BigDecimal(Long.parseLong((String) ct.getCampo("NUMCONTR"))));
-        rateioFCVO.set("CODPARC", this.codigoParceiro );
-        rateioFCVO.save();
+        JapeWrapper rateioFlowDAO = JapeFactory.dao("AD_RATEIOCPQ");
+        BigDecimal idInstanceProcesso = new BigDecimal(ct.getIdInstanceProcesso().toString());
+        Collection<DynamicVO> rateiosVO = rateioFlowDAO.find("IDINSTPRN = ?", new Object[]{idInstanceProcesso});
+
+        for (DynamicVO rateio : rateiosVO){
+
+            // Criando o Rateio
+            FluidCreateVO rateioFCVO = rateioDAO.create();
+            rateioFCVO.set("ORIGEM", String.valueOf("E"));
+            rateioFCVO.set("NUFIN", this.numeroUnicoNota );
+            rateioFCVO.set("CODNAT", rateio.asBigDecimal("CODNAT"));
+            rateioFCVO.set("CODCENCUS", rateio.asBigDecimal("CODCENCUS"));
+            rateioFCVO.set("CODPROJ", rateio.asBigDecimal("CODPROJ"));
+            rateioFCVO.set("CODSITE", rateio.asBigDecimal("CODSITRATEIO"));
+            rateioFCVO.set("PERCRATEIO", rateio.asBigDecimal("PERCRATEIO"));
+            rateioFCVO.set("CODCTACTB", rateio.asBigDecimal("CODCTACTB"));
+            rateioFCVO.set("NUMCONTRATO", new BigDecimal(Long.parseLong(ct.getCampo("NUMCONTR").toString())));
+            rateioFCVO.set("CODPARC", this.codigoParceiro );
+            rateioFCVO.save();
+        }
     }
 
     public void criandoFinanceiro(ContextoTarefa ct) throws Exception{

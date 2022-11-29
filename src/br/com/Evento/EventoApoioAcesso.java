@@ -8,6 +8,7 @@ import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.modelcore.auth.AuthenticationInfo;
+import br.com.util.VariaveisFlow;
 import com.sankhya.util.TimeUtils;
 
 import java.math.BigDecimal;
@@ -37,9 +38,9 @@ public class EventoApoioAcesso implements EventoProgramavelJava {
                 || usuariosVO.asBigDecimal("CODCENCUSPAD") == null){
             ErroUtils.disparaErro("Centro de resultado não informado, favor informar no cadastro do usuário!");
         }else if( centroResultadoVO.asString("ATIVO").equalsIgnoreCase(String.valueOf("N")) ){
-            ErroUtils.disparaErro("Centro de resultado esta inativo, favor informar outro centro de resultado!");
+            ErroUtils.disparaErro(VariaveisFlow.CENTRO_RESULTADO_INATIVO);
         }else if( centroResultadoVO.asString("ANALITICO").equalsIgnoreCase(String.valueOf("N")) ){
-            ErroUtils.disparaErro("Centro de resultado informado esta incorreto, favor informar um centro de resultado analitico!");
+            ErroUtils.disparaErro(VariaveisFlow.CENTRO_RESULTADO_NAO_ANALITICO);
         }
 
         vo.setProperty("CODUSUINCL", usuariosVO.asBigDecimal("CODUSU"));
@@ -65,9 +66,9 @@ public class EventoApoioAcesso implements EventoProgramavelJava {
                 || usuariosVO.asBigDecimal("CODCENCUSPAD") == null){
             ErroUtils.disparaErro("Centro de resultado não informado, favor informar no cadastro do usuário!");
         }else if( centroResultadoVO.asString("ATIVO").equalsIgnoreCase(String.valueOf("N")) ){
-            ErroUtils.disparaErro("Centro de resultado esta inativo, favor informar outro centro de resultado!");
+            ErroUtils.disparaErro(VariaveisFlow.CENTRO_RESULTADO_INATIVO);
         }else if( centroResultadoVO.asString("ANALITICO").equalsIgnoreCase(String.valueOf("N")) ){
-            ErroUtils.disparaErro("Centro de resultado informado esta incorreto, favor informar um centro de resultado analitico!");
+            ErroUtils.disparaErro(VariaveisFlow.CENTRO_RESULTADO_NAO_ANALITICO);
         }
 
         vo.setProperty("CODUSUALTER", usuariosVO.asBigDecimal("CODUSU"));

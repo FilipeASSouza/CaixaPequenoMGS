@@ -11,6 +11,7 @@ import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.modelcore.helper.SaldoBancarioHelpper;
 import br.com.sankhya.modelcore.util.EntityFacadeFactory;
 import br.com.util.NativeSqlDecorator;
+import br.com.util.VariaveisFlow;
 import com.sankhya.util.TimeUtils;
 
 import java.math.BigDecimal;
@@ -26,7 +27,6 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
     private JapeWrapper instanciaTarefaDAO = JapeFactory.dao("InstanciaTarefa");//TWFITAR
     private JapeWrapper instanciaVariavelDAO = JapeFactory.dao("InstanciaVariavel");//TWFIVAR
     private JapeWrapper liberacaoEventoDAO = JapeFactory.dao("LiberacaoLimite");//TSILIB
-    private JdbcWrapper jdbcWrapper = EntityFacadeFactory.getCoreFacade().getJdbcWrapper();
 
     @Override
     public void beforeInsert(PersistenceEvent persistenceEvent) throws Exception {
@@ -37,6 +37,8 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
 
     public void beforeUpdate(PersistenceEvent persistenceEvent) { }
     public void beforeDelete(PersistenceEvent persistenceEvent) throws Exception{
+
+        JdbcWrapper jdbcWrapper = persistenceEvent.getJdbcWrapper();
 
         DynamicVO vo = (DynamicVO) persistenceEvent.getVo();
         BigDecimal numeroUnico = vo.asBigDecimalOrZero("NUNOTA");
@@ -139,6 +141,7 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
 
     public void validaCamposGravacao(PersistenceEvent persistenceEvent) throws Exception {
         DynamicVO vo = (DynamicVO) persistenceEvent.getVo();
+        JdbcWrapper jdbcWrapper = persistenceEvent.getJdbcWrapper();
 
         if(vo.asString("CNPJ") == null ){
             throw new Exception("CNPJ não informado, fineza verificar novamente!");
@@ -159,9 +162,9 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
 
         DynamicVO centroResultadoVO = centroResultadoDAO.findByPK(vo.asBigDecimal("CODCENCUS"));
         if(centroResultadoVO.asString("ATIVO").equalsIgnoreCase(String.valueOf("N"))){
-            throw new Exception("Centro de resultado esta inativo, favor informar outro centro de resultado!");
+            throw new Exception(VariaveisFlow.CENTRO_RESULTADO_INATIVO);
         }else if( centroResultadoVO.asString("ANALITICO").equalsIgnoreCase(String.valueOf("N")) ){
-            throw new Exception("Centro de resultado informado esta incorreto, favor informar um centro de resultado analitico!");
+            throw new Exception(VariaveisFlow.CENTRO_RESULTADO_NAO_ANALITICO);
         }
 
         if(vo.asBigDecimalOrZero("NUMNOTA").equals(BigDecimal.ZERO)){
@@ -189,7 +192,7 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
         BigDecimal natureza = null;
         try{
 
-            verificarNaturezaTopSQL = new NativeSqlDecorator("SELECT CODNAT FROM VIEW_NATUREZA_CAIXAPEQUENO WHERE CODTIPOPER = :CODTIPOPER AND CODNAT = :CODNAT ", this.jdbcWrapper);
+            verificarNaturezaTopSQL = new NativeSqlDecorator("SELECT CODNAT FROM VIEW_NATUREZA_CAIXAPEQUENO WHERE CODTIPOPER = :CODTIPOPER AND CODNAT = :CODNAT ", jdbcWrapper);
             verificarNaturezaTopSQL.setParametro("CODTIPOPER", codigoTipoOperacao );
             verificarNaturezaTopSQL.setParametro("CODNAT", vo.asBigDecimalOrZero("CODNAT"));
 
@@ -212,7 +215,7 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
 
         try{
 
-            verificarAnexoSQL = new NativeSqlDecorator("SELECT NUATTACH FROM TSIANX WHERE PKREGISTRO = :PKREGISTRO", this.jdbcWrapper);
+            verificarAnexoSQL = new NativeSqlDecorator("SELECT NUATTACH FROM TSIANX WHERE PKREGISTRO = :PKREGISTRO", jdbcWrapper);
             verificarAnexoSQL.setParametro("PKREGISTRO", registroAnexado);
 
             if( verificarAnexoSQL.proximo() ){
@@ -220,7 +223,7 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
             }
         }catch (Exception e){
             e.printStackTrace();
-            throw new Exception("Fineza anexar a nota ao lançamento!");
+            throw new Exception(VariaveisFlow.NOTA_SEM_ANEXO);
         }finally {
             if (verificarAnexoSQL != null){
                 verificarAnexoSQL.close();
@@ -228,13 +231,13 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
         }
 
         if( validaAnexo == null){
-            throw new Exception("Fineza anexar a nota ao lançamento!");
+            throw new Exception(VariaveisFlow.NOTA_SEM_ANEXO);
         }
 
         NativeSqlDecorator verificaRestricaoSerieTop = null;
         try{
 
-            verificaRestricaoSerieTop = new NativeSqlDecorator("SELECT CODTIPOPER FROM TGFREP WHERE CODTIPOPER = :CODTIPOPER AND SERIE = :SERIE AND TIPREST = 'S'", this.jdbcWrapper);
+            verificaRestricaoSerieTop = new NativeSqlDecorator("SELECT CODTIPOPER FROM TGFREP WHERE CODTIPOPER = :CODTIPOPER AND SERIE = :SERIE AND TIPREST = 'S'", jdbcWrapper);
             verificaRestricaoSerieTop.setParametro("CODTIPOPER", codigoTipoOperacao);
             verificaRestricaoSerieTop.setParametro("SERIE", vo.asString("SERIENOTA"));
 
