@@ -47,7 +47,8 @@ public class GravarRegistro implements TarefaJava {
 
         Object idInstanceProcesso = contextoTarefa.getIdInstanceProcesso();
         BigDecimal valorTotal = new BigDecimal(Double.valueOf(contextoTarefa.getCampo("VLRTOT").toString()));
-        BigDecimal valorDesconto = new BigDecimal(Double.valueOf(contextoTarefa.getCampo("VLRDESCTOT").toString()));
+        BigDecimal valorDesconto = contextoTarefa.getCampo("VLRDESCTOT") == "" || contextoTarefa.getCampo("VLRDESCTOT") == null
+                ? BigDecimal.ZERO : new BigDecimal(contextoTarefa.getCampo("VLRDESCTOT").toString());
         BigDecimal valorTotalLiquido = valorTotal.subtract(valorDesconto);
         String status = null;
 
@@ -150,7 +151,8 @@ public class GravarRegistro implements TarefaJava {
         String vlrestpro = String.valueOf(contextoTarefa.getCampo("VLRESTPRO"));
         String vlrunit = String.valueOf(contextoTarefa.getCampo("VLRUNIT"));
         String vlrtot = String.valueOf(contextoTarefa.getCampo("VLRTOT"));
-        String valorDescontoNota = String.valueOf(contextoTarefa.getCampo("VLRDESCTOT"));
+        BigDecimal valorDescontoNota = contextoTarefa.getCampo("VLRDESCTOT") == "" || contextoTarefa.getCampo("VLRDESCTOT") == null
+                ? BigDecimal.ZERO : new BigDecimal(contextoTarefa.getCampo("VLRDESCTOT").toString());
         String codcencus = String.valueOf(contextoTarefa.getCampo("CODCENCUS"));
         String parceiro = String.valueOf(contextoTarefa.getCampo("PARCEIRO"));
         Object justificaCompra = String.valueOf(contextoTarefa.getCampo("JSTCOMPR"));
@@ -278,7 +280,7 @@ public class GravarRegistro implements TarefaJava {
         fluidCreateVO.set("VLRESTPRO", new BigDecimal(vlrestpro));
         fluidCreateVO.set("VLRUNIT", new BigDecimal(vlrunit));
         fluidCreateVO.set("VLRTOT", new BigDecimal(vlrtot));
-        fluidCreateVO.set("VLRDESCTOT", new BigDecimal(valorDescontoNota));
+        fluidCreateVO.set("VLRDESCTOT", valorDescontoNota);
         fluidCreateVO.set("CODCENCUS", new BigDecimal(codcencus));
         fluidCreateVO.set("CNPJ", cnpj);
         fluidCreateVO.set("CHAVENFE", chavenfe);

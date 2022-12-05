@@ -17,18 +17,48 @@ import java.util.Collection;
 
 public class EventoRateioFlow implements EventoProgramavelJava {
 
-    private final JapeWrapper rateioCPQ = JapeFactory.dao("AD_RATEIOCPQ");
+    private final static JapeWrapper rateioCPQ = JapeFactory.dao("AD_RATEIOCPQ");
+    private final static JapeWrapper contaContabilCRDAO = JapeFactory.dao("TGFNATCCCR");
     BigDecimal valorTotalLiquidoRegistro = null;
 
     @Override
     public void beforeInsert(PersistenceEvent event) throws Exception {
+
         DynamicVO vo = (DynamicVO) event.getVo();
+        BigDecimal paramNatureza;
+        BigDecimal paramCentroResultado;
+
+        if(vo.asBigDecimal("CODNAT") == null){
+            paramNatureza = new BigDecimal(VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"), "CODNAT").toString());
+        } else {
+            paramNatureza = vo.asBigDecimal("CODNAT");
+        }
+        if ( vo.asBigDecimal("CODCENCUS") == null ){
+            paramCentroResultado = new BigDecimal(VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"), "CODCENCUS").toString());
+        } else {
+            paramCentroResultado = vo.asBigDecimal("CODCENCUS");
+        }
+
+        DynamicVO contaContabilCRVO = contaContabilCRDAO.findOne("NUCLASSIFICACAO = 1 AND CODNAT = ?", new Object[]{paramNatureza});
+
+        vo.setProperty("CODPROJ", new BigDecimal(99990001L));
+        vo.setProperty("CODNAT", paramNatureza);
+        vo.setProperty("CODCTACTB", contaContabilCRVO.asBigDecimalOrZero("CODCTACTB"));
+        vo.setProperty("CODCENCUS", paramCentroResultado);
+
         validarCampos(vo);
+
         if (vo.asBigDecimal("VLRRATEIO") == null){
             valorTotalLiquidoRegistro = buscarValorTotal(event);
-        } else {
-            valorTotalLiquidoRegistro = vo.asBigDecimal("VLRRATEIO");
+        } else if ( vo.asBigDecimal("VLRRATEIO") != null ) {
+            BigDecimal valorTotal = VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"),"VLRTOT") == null ?
+                    vo.asBigDecimal("VLRRATEIO") : new BigDecimal(VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"),"VLRTOT").toString());
+            BigDecimal valorDesconto = VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"),"VLRDESCTOT") == null
+                    ? BigDecimal.ZERO : new BigDecimal(VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"),"VLRDESCTOT").toString());
+
+            valorTotalLiquidoRegistro = valorTotal.subtract(valorDesconto);
         }
+
         validarDuplicidade(vo);
         validarRateio(vo);
         Collection<DynamicVO> rateios = rateioCPQ.find("IDINSTPRN = ? AND CODREGISTRO <> ?"
@@ -96,7 +126,8 @@ public class EventoRateioFlow implements EventoProgramavelJava {
         BigDecimal idInstanciaProcesso = vo.asBigDecimal("IDINSTPRN");
 
         valorTotal = new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "VLRTOT").toString());
-        valorDesconto = new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "VLRDESCTOT").toString());
+        valorDesconto = VariaveisFlow.getVariavel(idInstanciaProcesso, "VLRDESCTOT") == null ? BigDecimal.ZERO :
+            new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "VLRDESCTOT").toString());
 
         BigDecimal resultado = valorTotal.subtract(valorDesconto);
 

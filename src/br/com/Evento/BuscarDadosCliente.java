@@ -14,8 +14,9 @@ import java.math.BigDecimal;
 
 public class BuscarDadosCliente implements EventoProcessoJava {
 
-    private final JapeWrapper parceiroDAO = JapeFactory.dao("Parceiro");
-    private final JapeWrapper rateioCPQ = JapeFactory.dao("AD_RATEIOCPQ");
+    private final static JapeWrapper parceiroDAO = JapeFactory.dao("Parceiro");
+    private final static JapeWrapper rateioCPQ = JapeFactory.dao("AD_RATEIOCPQ");
+    private final static JapeWrapper contaContabilCRDAO = JapeFactory.dao("TGFNATCCCR");
 
     public BuscarDadosCliente() {
     }
@@ -28,7 +29,7 @@ public class BuscarDadosCliente implements EventoProcessoJava {
         BigDecimal idInstanciaProcesso = new BigDecimal(contextoEvento.getIdInstanceProcesso().toString());
         BigDecimal idInstanciaTarefa = new BigDecimal(0L);
         BigDecimal codigoUsuario = new BigDecimal(contextoEvento.getIObjectInstanciaProcesso().get("CODUSUINC").toString());
-        JapeWrapper contaContabilCRDAO = JapeFactory.dao("TGFNATCCCR");
+
         String unidade = null;
 
         unidade = VariaveisFlow.getVariavel(idInstanciaProcesso,"UNID_FATURAMENTO").toString();
@@ -86,26 +87,25 @@ public class BuscarDadosCliente implements EventoProcessoJava {
             VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "PARCEIRO", String.valueOf(parceiroVO.asString("RAZAOSOCIAL")));
         }
 
-        String statusLimite = VariaveisFlow.getVariavel(idInstanciaProcesso, "STATUSLIMITE").toString();
+        String statusLimite = VariaveisFlow.getVariavel(idInstanciaProcesso, "STATUSLIMITE") == null ? ""
+                : VariaveisFlow.getVariavel(idInstanciaProcesso, "STATUSLIMITE").toString();
 
-        if ( (statusLimite == null || statusLimite.equalsIgnoreCase("") || statusLimite.equalsIgnoreCase("null"))
-                && contextoEvento.getCampo("VLRTOT") != null || contextoEvento.getCampo("VLRDESCTOT") != null ){
-            gerarRateioFlow(idInstanciaProcesso, contextoEvento, contaContabilCRDAO);
+        if ( (statusLimite == null || statusLimite.equalsIgnoreCase("") || statusLimite.equalsIgnoreCase("null")) &&
+                 contextoEvento.getCampo("VLRTOT") != null || contextoEvento.getCampo("VLRDESCTOT") != null ){
+            gerarRateioFlow(idInstanciaProcesso, contextoEvento );
         }
     }
 
-    public void gerarRateioFlow(BigDecimal idInstanciaProcesso, ContextoEvento contextoEvento, JapeWrapper contaContabil ) throws Exception {
+    public void gerarRateioFlow(BigDecimal idInstanciaProcesso, ContextoEvento contextoEvento ) throws Exception {
 
         BigDecimal paramUnidade = null;
         BigDecimal paramCodigoProjeto = null;
         BigDecimal paramCentroResultado = null;
         BigDecimal paramCodigoNatureza = null;
-        BigDecimal valorDesconto = BigDecimal.ZERO;
+        BigDecimal valorDesconto = contextoEvento.getCampo("VLRDESCTOT") == null ? BigDecimal.ZERO : new BigDecimal(contextoEvento.getCampo("VLRDESCTOT").toString());
         BigDecimal paramValorRateio = BigDecimal.ZERO;
 
-        if( contextoEvento.getCampo("VLRDESCTOT") != null ){
-            valorDesconto = new BigDecimal(Double.valueOf(contextoEvento.getCampo("VLRDESCTOT").toString()));
-        }else{
+        if( valorDesconto == null ){
             valorDesconto = new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "VLRDESCTOT").toString());
         }
 
@@ -144,7 +144,7 @@ public class BuscarDadosCliente implements EventoProcessoJava {
             paramCodigoNatureza = BigDecimal.valueOf(Long.parseLong(contextoEvento.getCampo("CODNAT").toString()));
         }
 
-        DynamicVO contaContabilCRVO = contaContabil.findOne("NUCLASSIFICACAO = 1 AND CODNAT = ?", new Object[]{paramCodigoNatureza});
+        DynamicVO contaContabilCRVO = contaContabilCRDAO.findOne("NUCLASSIFICACAO = 1 AND CODNAT = ?", new Object[]{paramCodigoNatureza});
 
         DynamicVO rateio = rateioCPQ.findOne("IDINSTPRN = ?", new Object[]{idInstanciaProcesso});
         if(rateio != null){

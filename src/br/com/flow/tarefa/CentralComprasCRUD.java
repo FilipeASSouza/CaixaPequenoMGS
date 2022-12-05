@@ -106,7 +106,8 @@ public class CentralComprasCRUD {
 
         BigDecimal quantidade = new BigDecimal(Long.parseLong(String.valueOf(ct.getCampo("QTDNEG"))));
         Double valorUnitario = (Double) ct.getCampo("VLRUNIT");
-        valorDesconto = new BigDecimal(Double.valueOf(ct.getCampo("VLRDESCTOT").toString()));
+        valorDesconto = ct.getCampo("VLRDESCTOT") == "" || ct.getCampo("VLRDESCTOT") == null
+                ? BigDecimal.ZERO : new BigDecimal(ct.getCampo("VLRDESCTOT").toString());
         valorTotal = quantidade.multiply(BigDecimal.valueOf(valorUnitario)).subtract(valorDesconto);
         statusNota = modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(603)) ? String.valueOf("L") : String.valueOf("A");
 
