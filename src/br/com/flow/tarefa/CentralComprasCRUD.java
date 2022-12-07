@@ -138,7 +138,8 @@ public class CentralComprasCRUD {
         cabecalhoNotaFCVO.set("CLASSIFICMS", String.valueOf("C") );
         cabecalhoNotaFCVO.set("VLRREPREDTOTSEMDESC", BigDecimal.ZERO );
         cabecalhoNotaFCVO.set("VLRFETHAB", BigDecimal.ZERO );
-        if(modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(613L))){
+        if(modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(613L))
+            || modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(612L))){
             cabecalhoNotaFCVO.set("NUMNFSE", numeroNota.toString() );
         }
 

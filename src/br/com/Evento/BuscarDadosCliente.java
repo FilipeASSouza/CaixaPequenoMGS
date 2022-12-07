@@ -7,7 +7,6 @@ import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.jape.wrapper.fluid.FluidCreateVO;
-import br.com.util.ErroUtils;
 import br.com.util.VariaveisFlow;
 
 import java.math.BigDecimal;
@@ -30,9 +29,7 @@ public class BuscarDadosCliente implements EventoProcessoJava {
         BigDecimal idInstanciaTarefa = new BigDecimal(0L);
         BigDecimal codigoUsuario = new BigDecimal(contextoEvento.getIObjectInstanciaProcesso().get("CODUSUINC").toString());
 
-        String unidade = null;
-
-        unidade = VariaveisFlow.getVariavel(idInstanciaProcesso,"UNID_FATURAMENTO").toString();
+        String unidade = VariaveisFlow.getVariavel(idInstanciaProcesso,"UNID_FATURAMENTO").toString();
 
         QueryExecutor consultarDadosContrato = contextoEvento.getQuery();
         consultarDadosContrato.setParam("CODUSU", codigoUsuario);
@@ -54,15 +51,16 @@ public class BuscarDadosCliente implements EventoProcessoJava {
                 "WHERE CTT.CODUSU = {CODUSU} \n" +
                 "AND (SUBSTR(UU.COD_UNIDADE1, 4, 3)||SUBSTR(UU.COD_UNIDADE2, 4, 3)||SUBSTR(UU.COD_UNIDADE3, 4, 3)) = {CODSIT}");
         if (consultarDadosContrato.next()){
-            VariaveisFlow.setVariavel(idInstanciaProcesso, BigDecimal.ZERO,"COD_LOTACAO", consultarDadosContrato.getString("CODLOT"));
+            //VariaveisFlow.setVariavel(idInstanciaProcesso, BigDecimal.ZERO,"COD_LOTACAO", consultarDadosContrato.getString("CODLOT"));
 
             Object tipoper = VariaveisFlow.getVariavel(idInstanciaProcesso, "TIPOPER");
             if(tipoper.toString().equalsIgnoreCase("S")){
                 VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", consultarDadosContrato.getString("NUM_CONTRATO"));
             }
-        } else if (!consultarDadosContrato.next()){
-            ErroUtils.disparaErro("Unidade de faturamento e contrato não localizado para o Usuário, fineza verificar com COCOP!");
         }
+//        else if (!consultarDadosContrato.next()){
+//            ErroUtils.disparaErro("Unidade de faturamento e contrato não localizado para o Usuário, fineza verificar com COCOP!");
+//        }
         consultarDadosContrato.close();
 
         if( cnpj != null ) {
@@ -90,7 +88,7 @@ public class BuscarDadosCliente implements EventoProcessoJava {
         String statusLimite = VariaveisFlow.getVariavel(idInstanciaProcesso, "STATUSLIMITE") == null ? ""
                 : VariaveisFlow.getVariavel(idInstanciaProcesso, "STATUSLIMITE").toString();
 
-        if ( (statusLimite == null || statusLimite.equalsIgnoreCase("") || statusLimite.equalsIgnoreCase("null")) &&
+        if ( (statusLimite == null || statusLimite.equalsIgnoreCase("") || statusLimite.equalsIgnoreCase("null") || statusLimite.equalsIgnoreCase("1")) &&
                  contextoEvento.getCampo("VLRTOT") != null || contextoEvento.getCampo("VLRDESCTOT") != null ){
             gerarRateioFlow(idInstanciaProcesso, contextoEvento );
         }

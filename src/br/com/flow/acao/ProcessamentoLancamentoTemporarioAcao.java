@@ -20,7 +20,7 @@ public class ProcessamentoLancamentoTemporarioAcao implements AcaoRotinaJava {
 
         if(Boolean.TRUE.equals(exclusaoRegistros)){
             QueryExecutor consultaRegistros = contextoAcao.getQuery();
-            consultaRegistros.nativeSelect("SELECT * FROM TWFIPRN WHERE DHINCLUSAO <= (SYSDATE - 2)");
+            consultaRegistros.nativeSelect("SELECT * FROM TWFIPRN WHERE DHINCLUSAO <= (SYSDATE - 2) AND DHCONCLUSAO IS NULL ORDER BY DHINCLUSAO");
             while (consultaRegistros.next()){
                 ProcessarLancamento processarLancamento = new ProcessarLancamento();
                 processarLancamento.excluirLancamentosTemporarios(consultaRegistros.getBigDecimal("IDINSTPRN"));
