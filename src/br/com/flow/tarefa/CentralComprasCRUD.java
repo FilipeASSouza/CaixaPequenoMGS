@@ -247,7 +247,7 @@ public class CentralComprasCRUD {
         financeiroDespesaFCVO.set("CODPROJ", new BigDecimal(99990001) );
         financeiroDespesaFCVO.set("CODEMP", new BigDecimal(1) );
         financeiroDespesaFCVO.set("CODPARC", this.codigoParceiro );
-        financeiroDespesaFCVO.set("NUMCONTRATO", new BigDecimal(Long.parseLong((String) ct.getCampo("NUMCONTR"))) );
+        financeiroDespesaFCVO.set("NUMCONTRATO", new BigDecimal(ct.getCampo("NUMCONTR").toString()) );
         financeiroDespesaFCVO.set("CODTIPOPER", this.codigotipoOperacao );
         financeiroDespesaFCVO.set("DHTIPOPER", this.dataTipoOperacao );
         financeiroDespesaFCVO.set("CODUSU", this.codigoUsuario );

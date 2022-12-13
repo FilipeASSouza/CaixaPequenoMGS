@@ -112,7 +112,6 @@ public class GravarRegistro implements TarefaJava {
             QueryExecutor consultarLancamento = contextoTarefa.getQuery();
             consultarLancamento.setParam("CODNAT", codnat);
             consultarLancamento.setParam("CNPJ", cnpj);
-            consultarLancamento.setParam("TOP", codigoTipoOperacao);
             consultarLancamento.setParam("PERIODO", parametrosRecorrencia[1]);
             consultarLancamento.nativeSelect("SELECT COUNT(*) QTDLANCAMENTOS FROM AD_FINCAIXAPQ WHERE CODNAT = {CODNAT} AND CNPJ = {CNPJ} AND TO_CHAR(DTMOV,'MM') > (TO_CHAR(SYSDATE, 'MM') - {PERIODO})");
 

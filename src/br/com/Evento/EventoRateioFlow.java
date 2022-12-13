@@ -4,15 +4,14 @@ import br.com.sankhya.extensions.eventoprogramavel.EventoProgramavelJava;
 import br.com.sankhya.jape.event.PersistenceEvent;
 import br.com.sankhya.jape.event.TransactionContext;
 import br.com.sankhya.jape.vo.DynamicVO;
-import br.com.sankhya.jape.vo.EntityVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
-import br.com.sankhya.jape.wrapper.fluid.FluidUpdateVO;
 import br.com.util.ErroUtils;
-import br.com.util.NativeSqlDecorator;
 import br.com.util.VariaveisFlow;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.util.Collection;
 
 public class EventoRateioFlow implements EventoProgramavelJava {
@@ -101,7 +100,7 @@ public class EventoRateioFlow implements EventoProgramavelJava {
         BigDecimal percentualEvento = vo.asBigDecimal("PERCRATEIO");
         percentualEvento = percentualEvento.divide(BigDecimal.valueOf(100L));
         resultadoValorEvento = percentualEvento.multiply(valorTotalLiquidoRegistro);
-        vo.setProperty("VLRRATEIO", resultadoValorEvento);
+        vo.setProperty("VLRRATEIO", resultadoValorEvento.round(new MathContext(3,RoundingMode.HALF_EVEN)));
     }
 
     private void validarCampos(DynamicVO vo) throws Exception {
@@ -135,7 +134,19 @@ public class EventoRateioFlow implements EventoProgramavelJava {
     }
 
     @Override
-    public void beforeDelete(PersistenceEvent persistenceEvent) throws Exception {}
+    public void beforeDelete(PersistenceEvent event) throws Exception {
+
+        DynamicVO vo = (DynamicVO) event.getVo();
+        BigDecimal codigoTipoOperacao = new BigDecimal(VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"), "TOPSERV") == null ?
+                VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"), "TOPPROD").toString() :
+                VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"), "TOPSERV").toString());
+
+        if (codigoTipoOperacao.equals(new BigDecimal("613"))
+            || codigoTipoOperacao.equals(new BigDecimal("603"))){
+            ErroUtils.disparaErro("Rateio não pode ser excluido!");
+        }
+
+    }
 
     @Override
     public void afterInsert(PersistenceEvent persistenceEvent) throws Exception {}

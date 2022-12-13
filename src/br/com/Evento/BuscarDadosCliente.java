@@ -16,57 +16,69 @@ public class BuscarDadosCliente implements EventoProcessoJava {
     private final static JapeWrapper parceiroDAO = JapeFactory.dao("Parceiro");
     private final static JapeWrapper rateioCPQ = JapeFactory.dao("AD_RATEIOCPQ");
     private final static JapeWrapper contaContabilCRDAO = JapeFactory.dao("TGFNATCCCR");
+    private final static JapeWrapper centroResultadoLotacaoDAO = JapeFactory.dao("AD_LOTCRCPQ");
 
     public BuscarDadosCliente() {
     }
 
     public void executar(ContextoEvento contextoEvento) throws Exception {
 
-        Object codigoLotacao = contextoEvento.getCampo("COD_LOTACAO");
-        Object cnpj = contextoEvento.getCampo("CNPJ");
         String cnpjTela = null;
         BigDecimal idInstanciaProcesso = new BigDecimal(contextoEvento.getIdInstanceProcesso().toString());
         BigDecimal idInstanciaTarefa = new BigDecimal(0L);
-        BigDecimal codigoUsuario = new BigDecimal(contextoEvento.getIObjectInstanciaProcesso().get("CODUSUINC").toString());
+        Object codigoLotacao = contextoEvento.getCampo("COD_LOTACAO") == null ? VariaveisFlow.getVariavel(idInstanciaProcesso, "COD_LOTACAO")
+                : contextoEvento.getCampo("COD_LOTACAO");
+        Object cnpj = contextoEvento.getCampo("CNPJ") == null ? VariaveisFlow.getVariavel(idInstanciaProcesso, "CNPJ") : contextoEvento.getCampo("CNPJ");
+        String statusLimite = VariaveisFlow.getVariavel(idInstanciaProcesso, "STATUSLIMITE") == null ? ""
+                : VariaveisFlow.getVariavel(idInstanciaProcesso, "STATUSLIMITE").toString();
 
-        String unidade = VariaveisFlow.getVariavel(idInstanciaProcesso,"UNID_FATURAMENTO").toString();
+        if(statusLimite == null || statusLimite.equalsIgnoreCase("") || statusLimite.equalsIgnoreCase("null") || statusLimite.equalsIgnoreCase("1")){
 
-        QueryExecutor consultarDadosContrato = contextoEvento.getQuery();
-        consultarDadosContrato.setParam("CODUSU", codigoUsuario);
-        consultarDadosContrato.setParam("CODSIT", unidade);
-        consultarDadosContrato.nativeSelect("SELECT U.ID ID_USUARIO,\n" +
-                "CTT.CODUSU, \n" +
-                "SUBSTR(UU.COD_UNIDADE1, 4, 3)|| \n" +
-                "SUBSTR(UU.COD_UNIDADE2, 4, 3)|| \n" +
-                "SUBSTR(UU.COD_UNIDADE3, 4, 3) UNIDADE, \n" +
-                "UU.NUM_CONTRATO, \n" +
-                "LOT.CODLOT \n" +
-                "FROM PORTALCLIENTE.USUARIO@DLINK_MGS U \n" +
-                "INNER JOIN WEB.USUARIO_UNIDADE@DLINK_MGS UU  ON (U.LOGIN = UU.LOGIN) \n" +
-                "INNER JOIN TGFCTT CTT ON CTT.CODPARC = 9999 AND CTT.AD_USUARIOPORTAL = U.ID \n" +
-                "LEFT JOIN MGSTCTCONTRATO ON MGSTCTCONTRATO.NUMCONTRATO = UU.NUM_CONTRATO + 0 \n" +
-                "LEFT JOIN AD_TGFLOT LOT ON LOT.CODSITE = ( SUBSTR(UU.COD_UNIDADE1, 4, 3)|| \n" +
-                "SUBSTR(UU.COD_UNIDADE2, 4, 3)|| \n" +
-                "SUBSTR(UU.COD_UNIDADE3, 4, 3) ) \n" +
-                "WHERE CTT.CODUSU = {CODUSU} \n" +
-                "AND (SUBSTR(UU.COD_UNIDADE1, 4, 3)||SUBSTR(UU.COD_UNIDADE2, 4, 3)||SUBSTR(UU.COD_UNIDADE3, 4, 3)) = {CODSIT}");
-        if (consultarDadosContrato.next()){
-            //VariaveisFlow.setVariavel(idInstanciaProcesso, BigDecimal.ZERO,"COD_LOTACAO", consultarDadosContrato.getString("CODLOT"));
+            QueryExecutor consultaParemtroTabApoio = contextoEvento.getQuery();
+            consultaParemtroTabApoio.setParam("PARAM", "TABCRLOT");
+            consultaParemtroTabApoio.nativeSelect("SELECT * FROM AD_PARAMCP WHERE PARAMETRO = {PARAM}");
+            if (consultaParemtroTabApoio.next()){
+                if (consultaParemtroTabApoio.getString("STATUS").equalsIgnoreCase("2")){
 
-            Object tipoper = VariaveisFlow.getVariavel(idInstanciaProcesso, "TIPOPER");
-            if(tipoper.toString().equalsIgnoreCase("S")){
-                VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", consultarDadosContrato.getString("NUM_CONTRATO"));
+                    DynamicVO centroResultadoLotacaoVO = centroResultadoLotacaoDAO.findOne("CODLOT = ?", new Object[]{codigoLotacao});
+                    Object tipoper = VariaveisFlow.getVariavel(idInstanciaProcesso, "TIPOPER");
+                    if(tipoper.toString().equalsIgnoreCase("S")){
+                        VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO"));
+                    }
+                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS"));
+                } else {
+
+                    QueryExecutor consultarDadosContrato = contextoEvento.getQuery();
+                    consultarDadosContrato.setParam("CODLOT", codigoLotacao);
+                    consultarDadosContrato.nativeSelect("select mgstctcontrcent.numcontrato AD_NUMCONTRATO\n" +
+                            "from mgstctcontrcent\n" +
+                            "inner join mgstctcontrato on mgstctcontrato.numcontrato = Mgstctcontrcent.Numcontrato and Mgstctcontrato.Codtipsituacao = 1\n" +
+                            "inner join ad_tgflot lot on (lot.codsite = mgstctcontrcent.codsite)\n" +
+                            "inner join tgfsit    sit ON sit.codsite = lot.codsite\n" +
+                            "where nvl(Mgstctcontrcent.Dtfim,sysdate) >= sysdate\n" +
+                            "and lot.codlot = {CODLOT}\n" +
+                            "and mgstctcontrcent.numcontrato = sit.ad_numcontrato");
+                    if (consultarDadosContrato.next()){
+                        //VariaveisFlow.setVariavel(idInstanciaProcesso, BigDecimal.ZERO,"COD_LOTACAO", consultarDadosContrato.getString("CODLOT"));
+
+                        Object tipoper = VariaveisFlow.getVariavel(idInstanciaProcesso, "TIPOPER");
+                        if(tipoper.toString().equalsIgnoreCase("S")){
+                            VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", consultarDadosContrato.getString("AD_NUMCONTRATO"));
+                        }
+                    }
+        //        else if (!consultarDadosContrato.next()){
+        //            ErroUtils.disparaErro("Unidade de faturamento e contrato não localizado para o Usuário, fineza verificar com COCOP!");
+        //        }
+                    consultarDadosContrato.close();
+                }
             }
+            consultaParemtroTabApoio.close();
         }
-//        else if (!consultarDadosContrato.next()){
-//            ErroUtils.disparaErro("Unidade de faturamento e contrato não localizado para o Usuário, fineza verificar com COCOP!");
-//        }
-        consultarDadosContrato.close();
 
         if( cnpj != null ) {
             DynamicVO parceiroVO = this.parceiroDAO.findOne("CGC_CPF = ?", new Object[]{String.valueOf(cnpj)});
             if(parceiroVO == null){
-                throw new Exception("Parceiro não foi localizado, fineza entrar em contato com o setor financeiro!");
+                throw new Exception(VariaveisFlow.PARCEIRO_NAO_ENCONTRADO);
             }
             VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "PARCEIRO", String.valueOf(parceiroVO.asString("RAZAOSOCIAL")));
         } else if(codigoLotacao != null){
@@ -84,9 +96,6 @@ public class BuscarDadosCliente implements EventoProcessoJava {
 
             VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "PARCEIRO", String.valueOf(parceiroVO.asString("RAZAOSOCIAL")));
         }
-
-        String statusLimite = VariaveisFlow.getVariavel(idInstanciaProcesso, "STATUSLIMITE") == null ? ""
-                : VariaveisFlow.getVariavel(idInstanciaProcesso, "STATUSLIMITE").toString();
 
         if ( (statusLimite == null || statusLimite.equalsIgnoreCase("") || statusLimite.equalsIgnoreCase("null") || statusLimite.equalsIgnoreCase("1")) &&
                  contextoEvento.getCampo("VLRTOT") != null || contextoEvento.getCampo("VLRDESCTOT") != null ){
