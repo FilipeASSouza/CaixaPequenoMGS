@@ -14,6 +14,7 @@ import com.sankhya.util.TimeUtils;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.Collection;
+import java.util.Date;
 
 public class GravarRegistro implements TarefaJava {
 
@@ -65,13 +66,32 @@ public class GravarRegistro implements TarefaJava {
 
         if (status.equalsIgnoreCase("2")){
             if (parametroAquisicao.compareTo(valorTotalLiquido) < 0){
-                String emailDiretor = null;
+                String[] emailDiretor = null;
+                Date periodoFimAtividade = null;
+                Date dataAtual = TimeUtils.getNow();
+                String paramEmailDiretor = null;
+
+                QueryExecutor consultaDiretoria = contextoTarefa.getQuery();
+                consultaDiretoria.setParam("LOTACAO", contextoTarefa.getCampo("COD_LOTACAO"));
+                consultaDiretoria.nativeSelect("SELECT GRUPODIRETORIA FROM AD_LOTCRCPQ WHERE CODLOT = {LOTACAO}");
+
+                BigDecimal parametroDiretoria = null;
+                if(consultaDiretoria.next()){
+                    parametroDiretoria = consultaDiretoria.getBigDecimal("GRUPODIRETORIA");
+                }
+                consultaDiretoria.close();
 
                 QueryExecutor consultaEmailDiretoria = contextoTarefa.getQuery();
-                consultaEmailDiretoria.setParam("PARAM", "EMAILDIRETOR");
+                consultaEmailDiretoria.setParam("PARAM", parametroDiretoria.toString() );
                 consultaEmailDiretoria.nativeSelect("SELECT * FROM AD_PARAMCP WHERE PARAMETRO = {PARAM}");
                 if (consultaEmailDiretoria.next()){
-                    emailDiretor = consultaEmailDiretoria.getString("VALOR");
+                    periodoFimAtividade = consultaEmailDiretoria.getDate("PERIODOFIMATIVIDADE");
+                    emailDiretor = consultaEmailDiretoria.getString("VALOR").split(";");
+                    if (periodoFimAtividade.compareTo(dataAtual) < 0){
+                        paramEmailDiretor = emailDiretor[1];
+                    }else {
+                        paramEmailDiretor = emailDiretor[0];
+                    }
                 }
 
                 if (emailDiretor == null){
@@ -79,13 +99,16 @@ public class GravarRegistro implements TarefaJava {
                 }
 
                 VariaveisFlow.setVariavel(new BigDecimal(idInstanceProcesso.toString()), BigDecimal.ZERO, "STATUSLIMITE", "2");
-                VariaveisFlow.setVariavel(new BigDecimal(idInstanceProcesso.toString()), BigDecimal.ZERO, "EMAILDIRETORIA", emailDiretor);
+                VariaveisFlow.setVariavel(new BigDecimal(idInstanceProcesso.toString()), BigDecimal.ZERO, "EMAILDIRETORIA", paramEmailDiretor);
+
+                consultaEmailDiretoria.close();
             } else {
                 VariaveisFlow.setVariavel(new BigDecimal(idInstanceProcesso.toString()), BigDecimal.ZERO, "STATUSLIMITE", "1");
             }
         } else if (consultaParametro == null) {
             ErroUtils.disparaErro(VariaveisFlow.MENSAGEM_PARAMETRO);
         }
+        consultaParametro.close();
     }
 
     private void validarCompraRecorrentes(ContextoTarefa contextoTarefa, String parametro) throws Exception{
@@ -167,57 +190,57 @@ public class GravarRegistro implements TarefaJava {
         }
         if(numnota.equalsIgnoreCase("null")
                 || numnota == null || numnota.equalsIgnoreCase("")){
-            ErroUtils.disparaErro("Necessário informar o número da nota");
+            throw new Exception("Necessário informar o número da nota");
         }else if(cnpj.length() > 14){
-            ErroUtils.disparaErro("CNPJ são apenas números, fineza verificar!");
+            throw new Exception("CNPJ são apenas números, fineza verificar!");
         }else if(cnpj.equalsIgnoreCase("null")
                 || cnpj == null || cnpj.equalsIgnoreCase("")) {
-            ErroUtils.disparaErro("Necessário informar o CNPJ, fineza verificar!");
+            throw new Exception("Necessário informar o CNPJ, fineza verificar!");
         }else if(parceiro.equalsIgnoreCase("null")
                 || parceiro == null || parceiro.equalsIgnoreCase("")){
-            ErroUtils.disparaErro("Parceiro informado não está cadastrado, fineza verificar com a MGS!");
-        }else if(topserv.equalsIgnoreCase(String.valueOf("null"))
-                && chavenfe.equalsIgnoreCase(String.valueOf("null"))){
-            ErroUtils.disparaErro("Chave NFe não foi informada, fineza verificar!");
+            throw new Exception("Parceiro informado não está cadastrado, fineza verificar com a MGS!");
+        }else if(!topprod.equalsIgnoreCase(String.valueOf(""))
+                && chavenfe.equalsIgnoreCase("")){
+            throw new Exception("Chave NFe não foi informada, fineza verificar!");
         }else if(topserv.equalsIgnoreCase(String.valueOf("null"))
             && chavenfe.length() < 44){
-            ErroUtils.disparaErro("Chave NFe informada incorretamente, fineza verificar!");
+            throw new Exception("Chave NFe informada incorretamente, fineza verificar!");
         }else if(!topserv.equalsIgnoreCase(String.valueOf(""))
                 && !chavenfe.equalsIgnoreCase(String.valueOf(""))){
-            ErroUtils.disparaErro("Chave NFe foi informada para o processo de serviço, fineza remover!");
+            throw new Exception("Chave NFe foi informada para o processo de serviço, fineza remover!");
         }else if(codlot.equalsIgnoreCase("null")
                 || codlot == null || codlot.equalsIgnoreCase("")){
-            ErroUtils.disparaErro("Lotação não foi informada, fineza verificar!");
+            throw new Exception("Lotação não foi informada, fineza verificar!");
         }else if(codnat.equalsIgnoreCase("null")
                 || codnat == null || codnat.equalsIgnoreCase("")){
-            ErroUtils.disparaErro("Natureza não foi informada, fineza verificar!");
+            throw new Exception("Natureza não foi informada, fineza verificar!");
         }else if(serienota.equalsIgnoreCase("null")
                 || serienota == null || serienota.equalsIgnoreCase("")){
-            ErroUtils.disparaErro("Nº de Série da Nota não foi informada, fineza verificar!");
+            throw new Exception("Nº de Série da Nota não foi informada, fineza verificar!");
         }else if(!topserv.equalsIgnoreCase(String.valueOf(""))
             && !serienota.equalsIgnoreCase(String.valueOf("NFS"))){
-            ErroUtils.disparaErro(VariaveisFlow.SERIE_NOTA_INCORRETA);
+            throw new Exception(VariaveisFlow.SERIE_NOTA_INCORRETA);
         }else if(!topprod.equalsIgnoreCase(String.valueOf(""))
                 && serienota.equalsIgnoreCase(String.valueOf("NFS"))){
-            ErroUtils.disparaErro(VariaveisFlow.SERIE_NOTA_INCORRETA);
+            throw new Exception(VariaveisFlow.SERIE_NOTA_INCORRETA);
         }else if(tpneg.equalsIgnoreCase("null")
                 || tpneg == null || tpneg.equalsIgnoreCase("")){
-            ErroUtils.disparaErro("Tipo de negociação não foi informada, fineza verificar!");
+            throw new Exception("Tipo de negociação não foi informada, fineza verificar!");
         }else if(codcencus.equalsIgnoreCase("null")
                 || codcencus == null || codcencus.equalsIgnoreCase("")){
-            ErroUtils.disparaErro("Centro de resultado não foi informado, fineza verificar!");
+            throw new Exception("Centro de resultado não foi informado, fineza verificar!");
         }else if(dtfatem == null){
-            ErroUtils.disparaErro("Data do Faturamento/Emissão não foi informado, fineza verificar!");
+            throw new Exception("Data do Faturamento/Emissão não foi informado, fineza verificar!");
         }else if(dtentrcont == null){
-            ErroUtils.disparaErro("Data da Entrada Contábil não foi informado, fineza verificar!");
+            throw new Exception("Data da Entrada Contábil não foi informado, fineza verificar!");
         }else if(dtmov == null){
-            ErroUtils.disparaErro("Data da Movimentação não foi informado, fineza verificar!");
+            throw new Exception("Data da Movimentação não foi informado, fineza verificar!");
         }else if(obs.equalsIgnoreCase("null")
                 || obs == null || obs.equalsIgnoreCase("")){
-            ErroUtils.disparaErro("Observação deve ser preenchida, fineza verificar!");
+            throw new Exception("Observação deve ser preenchida, fineza verificar!");
         }else if( justificaCompra == null || jstcompr.equalsIgnoreCase("")
                 || jstcompr.equalsIgnoreCase("null")){
-            ErroUtils.disparaErro("Justificativa não foi informada fineza verificar");
+            throw new Exception("Justificativa não foi informada fineza verificar");
         }
 
         //Criar a validação a partir o fechamento contabil
@@ -234,7 +257,7 @@ public class GravarRegistro implements TarefaJava {
             if(mesFaturamento != mesAtual
                     || mesMovimentacao != mesAtual
                     || mesContabil != mesAtual ){
-                ErroUtils.disparaErro("Fineza verificar as datas, não é possível realizar um lançamento com a data do mês anterior!");
+                throw new Exception("Fineza verificar as datas, não é possível realizar um lançamento com a data do mês anterior!");
             }
         }
 
@@ -251,7 +274,7 @@ public class GravarRegistro implements TarefaJava {
         consultaRestricoesTOP.close();
 
         if(codigoLotacao == null || codigoLotacao.equalsIgnoreCase("")){
-            ErroUtils.disparaErro("Codigo de lotação não esta vinculado ao tipo de negociação, fineza entrar em contato com a Tesouraria MGS!");
+            throw new Exception("Codigo de lotação não esta vinculado ao tipo de negociação, fineza entrar em contato com a Tesouraria MGS!");
         }
 
         JapeWrapper fincaixapqFCVO = JapeFactory.dao("AD_FINCAIXAPQ");
@@ -295,19 +318,24 @@ public class GravarRegistro implements TarefaJava {
 
         for (DynamicVO rateio: rateiosFlow){
 
-            JapeWrapper rateioSankhyaDAO = JapeFactory.dao("AD_FINRATEIOCPQ");
-            FluidCreateVO rateioSankhyaFCVO = rateioSankhyaDAO.create();
-            rateioSankhyaFCVO.set("IDINSTPRN", contextoTarefa.getIdInstanceProcesso());
-            rateioSankhyaFCVO.set("SEQUENCIA",new BigDecimal(i));
-            rateioSankhyaFCVO.set("VLRRATEIO",rateio.asBigDecimal("VLRRATEIO"));
-            rateioSankhyaFCVO.set("PERCRATEIO", rateio.asBigDecimal("PERCRATEIO"));
-            rateioSankhyaFCVO.set("CODPROJ", rateio.asBigDecimal("CODPROJ"));
-            rateioSankhyaFCVO.set("CODCTACTB", rateio.asBigDecimal("CODCTACTB"));
-            rateioSankhyaFCVO.set("CODSITRATEIO", rateio.asBigDecimal("CODSITRATEIO"));
-            rateioSankhyaFCVO.set("CODNAT", rateio.asBigDecimal("CODNAT"));
-            rateioSankhyaFCVO.set("CODCENCUS", rateio.asBigDecimal("CODCENCUS"));
-            rateioSankhyaFCVO.save();
-            ++i;
+            try{
+                JapeWrapper rateioSankhyaDAO = JapeFactory.dao("AD_FINRATEIOCPQ");
+                FluidCreateVO rateioSankhyaFCVO = rateioSankhyaDAO.create();
+                rateioSankhyaFCVO.set("IDINSTPRN", contextoTarefa.getIdInstanceProcesso());
+                rateioSankhyaFCVO.set("SEQUENCIA",new BigDecimal(i));
+                rateioSankhyaFCVO.set("VLRRATEIO",rateio.asBigDecimal("VLRRATEIO"));
+                rateioSankhyaFCVO.set("PERCRATEIO", rateio.asBigDecimal("PERCRATEIO"));
+                rateioSankhyaFCVO.set("CODPROJ", rateio.asBigDecimal("CODPROJ"));
+                rateioSankhyaFCVO.set("CODCTACTB", rateio.asBigDecimal("CODCTACTB"));
+                rateioSankhyaFCVO.set("CODSITRATEIO", rateio.asBigDecimal("CODSITRATEIO"));
+                rateioSankhyaFCVO.set("CODNAT", rateio.asBigDecimal("CODNAT"));
+                rateioSankhyaFCVO.set("CODCENCUS", rateio.asBigDecimal("CODCENCUS"));
+                rateioSankhyaFCVO.save();
+                ++i;
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new Exception("Erro nos dados do formulario do rateio, fineza verificar!");
+            }
         }
     }
 }

@@ -1,6 +1,5 @@
 package br.com.flow.agendamento;
 
-import br.com.flow.tarefa.ProcessarLancamento;
 import br.com.sankhya.jape.dao.JdbcWrapper;
 import br.com.sankhya.jape.sql.NativeSql;
 import br.com.sankhya.jape.util.JapeSessionContext;
@@ -13,14 +12,14 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 
-public class ProcessamentoLancamentoTemporarioJob implements ScheduledAction {
+public class DisparoEmailCaixaPequenoJob implements ScheduledAction {
 
     private JdbcWrapper jdbcWrapper = EntityFacadeFactory.getCoreFacade().getJdbcWrapper();
-    private NativeSql nativeSql = null;
+    private NativeSql consultarCadastroEmailSQL = null;
 
     public void setup() {
         JapeSessionContext.putProperty("usuario_logado", BigDecimal.ZERO);
-        JapeSessionContext.putProperty("emp_usu_logado", BigDecimal.ZERO);
+        JapeSessionContext.putProperty("emp_usu_logado", (Object)null);
         JapeSessionContext.putProperty("dh_atual", new Timestamp(System.currentTimeMillis()));
         JapeSessionContext.putProperty("d_atual", new Timestamp(TimeUtils.getToday()));
     }
@@ -29,27 +28,32 @@ public class ProcessamentoLancamentoTemporarioJob implements ScheduledAction {
     public void onTime(ScheduledActionContext scheduledActionContext) {
         try{
             this.setup();
-            this.processar();
+            this.processar(this.jdbcWrapper);
         }catch (Exception e){
             e.printStackTrace();
         }
     }
 
-    private void processar() throws Exception {
-        try {
-            nativeSql = new NativeSql(this.jdbcWrapper);
-            nativeSql.appendSql("SELECT * FROM TWFIPRN WHERE CODPRN = 24 AND DHINCLUSAO <= (SYSDATE - 2) AND DHCONCLUSAO IS NULL ORDER BY DHINCLUSAO");
+    public void processar(JdbcWrapper jdbcWrapper ) {
+
+        try{
+
+            consultarCadastroEmailSQL = new NativeSql(jdbcWrapper);
+            consultarCadastroEmailSQL.appendSql("SELECT * FROM AD_EMAILCPQ ORDER BY SEQUENCIA");
+
             ResultSet rs;
-            for (rs = this.nativeSql.executeQuery(); rs.next(); ) {
-                ProcessarLancamento processarLancamento = new ProcessarLancamento();
-                processarLancamento.excluirLancamentosTemporarios(rs.getBigDecimal("IDINSTPRN"));
-            }
+            rs = consultarCadastroEmailSQL.executeQuery();
+
+            DisparoEmailCaixaPequenoProcessamento processamentoDisparo = new DisparoEmailCaixaPequenoProcessamento();
+            processamentoDisparo.processarEmail(rs, consultarCadastroEmailSQL);
+
             rs.close();
-        }catch (Exception e) {
+
+        }catch (Exception e){
             e.printStackTrace();
         }finally {
-            if( nativeSql != null ){
-                NativeSql.releaseResources(nativeSql);
+            if (consultarCadastroEmailSQL != null){
+                NativeSql.releaseResources(consultarCadastroEmailSQL);
             }
             jdbcWrapper.closeSession();
         }

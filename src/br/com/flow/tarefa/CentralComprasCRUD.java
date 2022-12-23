@@ -3,6 +3,7 @@ package br.com.flow.tarefa;
 import br.com.sankhya.extensions.actionbutton.QueryExecutor;
 import br.com.sankhya.extensions.flow.ContextoTarefa;
 import br.com.sankhya.jape.core.JapeSession;
+import br.com.sankhya.jape.sql.NativeSql;
 import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
@@ -37,6 +38,7 @@ public class CentralComprasCRUD {
     private BigDecimal numeroUnicoFinanceiro = null;
     private BigDecimal valorDesconto = null;
     private BigDecimal valorTotal = null;
+    private String pendente = null;
 
     public void criandoCabeçalho(ContextoTarefa ct) throws Exception {
 
@@ -109,12 +111,26 @@ public class CentralComprasCRUD {
         valorDesconto = ct.getCampo("VLRDESCTOT") == "" || ct.getCampo("VLRDESCTOT") == null
                 ? BigDecimal.ZERO : new BigDecimal(ct.getCampo("VLRDESCTOT").toString());
         valorTotal = quantidade.multiply(BigDecimal.valueOf(valorUnitario)).subtract(valorDesconto);
-        statusNota = modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(603)) ? String.valueOf("L") : String.valueOf("A");
+
+        QueryExecutor consultaParametroConfirmacao = ct.getQuery();
+        consultaParametroConfirmacao.setParam("PARAM", "CONFIRMALANCAMENTO" );
+        consultaParametroConfirmacao.nativeSelect("SELECT * FROM AD_PARAMCP WHERE PARAMETRO = {PARAM}");
+        if (consultaParametroConfirmacao.next()){
+            if (consultaParametroConfirmacao.getString("STATUS").equalsIgnoreCase("2")){
+                statusNota = modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(603))
+                        || modeloNotaVO.asBigDecimal("CODTIPOPER").equals(BigDecimal.valueOf(602)) ? String.valueOf("L") : String.valueOf("A");
+                pendente = "N";
+            }else {
+                statusNota = "A";
+                pendente = "S";
+            }
+        }
+        consultaParametroConfirmacao.close();
 
         cabecalhoNotaFCVO.set("VLRNOTA", valorTotal );
-        cabecalhoNotaFCVO.set("VLRDESCTOT", valorDesconto);
+        cabecalhoNotaFCVO.set("VLRDESCTOT", valorDesconto );
         cabecalhoNotaFCVO.set("STATUSNOTA", statusNota );
-        cabecalhoNotaFCVO.set("PENDENTE", String.valueOf("N"));
+        cabecalhoNotaFCVO.set("PENDENTE", pendente );
         cabecalhoNotaFCVO.set("CODTIPVENDA", new BigDecimal( Long.parseLong((String) ct.getCampo("TPNEG"))));
         cabecalhoNotaFCVO.set("DHTIPVENDA", datatipoNegociacao );
         cabecalhoNotaFCVO.set("AD_CODLOT", new BigDecimal(Long.parseLong( (String) ct.getCampo("COD_LOTACAO"))));
@@ -285,7 +301,6 @@ public class CentralComprasCRUD {
             anexoCentralNotaFCVO.set("EDITA","N");
             anexoCentralNotaFCVO.set("ARQUIVO",  this.numeroUnicoNota.toString() + i );
             anexoCentralNotaFCVO.set("DESCRICAO", this.numeroUnicoNota.toString() + i );
-            anexoCentralNotaFCVO.set("TIPOCONTEUDO","P");
             anexoCentralNotaFCVO.set("TIPO","N");
             anexoCentralNotaFCVO.set("CODUSU", this.codigoUsuario );
             anexoCentralNotaFCVO.set("CONTEUDO", FileUtils.readFileToByteArray(file));

@@ -7,6 +7,7 @@ import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.jape.wrapper.fluid.FluidCreateVO;
+import br.com.sankhya.jape.wrapper.fluid.FluidUpdateVO;
 import br.com.util.VariaveisFlow;
 
 import java.math.BigDecimal;
@@ -17,6 +18,7 @@ public class BuscarDadosCliente implements EventoProcessoJava {
     private final static JapeWrapper rateioCPQ = JapeFactory.dao("AD_RATEIOCPQ");
     private final static JapeWrapper contaContabilCRDAO = JapeFactory.dao("TGFNATCCCR");
     private final static JapeWrapper centroResultadoLotacaoDAO = JapeFactory.dao("AD_LOTCRCPQ");
+    private final static JapeWrapper lotacaoNativoDAO = JapeFactory.dao("TGFLOT");
 
     public BuscarDadosCliente() {
     }
@@ -39,36 +41,58 @@ public class BuscarDadosCliente implements EventoProcessoJava {
             consultaParemtroTabApoio.nativeSelect("SELECT * FROM AD_PARAMCP WHERE PARAMETRO = {PARAM}");
             if (consultaParemtroTabApoio.next()){
                 if (consultaParemtroTabApoio.getString("STATUS").equalsIgnoreCase("2")){
-
-                    DynamicVO centroResultadoLotacaoVO = centroResultadoLotacaoDAO.findOne("CODLOT = ?", new Object[]{codigoLotacao});
-                    Object tipoper = VariaveisFlow.getVariavel(idInstanciaProcesso, "TIPOPER");
-                    if(tipoper.toString().equalsIgnoreCase("S")){
-                        VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO"));
+                    DynamicVO centroResultadoLotacaoVO;
+                    DynamicVO lotacaoNativoVO;
+                    try{
+                        centroResultadoLotacaoVO = centroResultadoLotacaoDAO.findOne("CODLOT = ?", new Object[]{codigoLotacao});
+                    } catch (Exception e){
+                        e.printStackTrace();
+                        throw new Exception("Lotacao nao localizada na tabela de apoio do Caixa Pequeno, fineza verificar com a Tesouraria MGS!");
                     }
-                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS"));
+                    try{
+                        lotacaoNativoVO = lotacaoNativoDAO.findOne("CODLOT = ?", new Object[]{codigoLotacao});
+                    } catch (Exception e){
+                        e.printStackTrace();
+                        throw new Exception("Lotacao nao localizada na tabela de integracao do Sankhya, fineza verificar com a Tesouraria MGS!");
+                    }
+
+                    //PRODUCAO
+                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO").toString());
+                    //DESENV
+                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO"));
+
+                    //PRODUCAO
+                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS").toString());
+                    //DESENV
+                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS"));
+
+                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "UNID_FATURAMENTO", lotacaoNativoVO.asBigDecimal("CODSITE"));
                 } else {
 
                     QueryExecutor consultarDadosContrato = contextoEvento.getQuery();
                     consultarDadosContrato.setParam("CODLOT", codigoLotacao);
                     consultarDadosContrato.nativeSelect("select mgstctcontrcent.numcontrato AD_NUMCONTRATO\n" +
+                            ", LOT.CODSITE\n" +
+                            ", CON.CODCENCUS\n " +
                             "from mgstctcontrcent\n" +
                             "inner join mgstctcontrato on mgstctcontrato.numcontrato = Mgstctcontrcent.Numcontrato and Mgstctcontrato.Codtipsituacao = 1\n" +
                             "inner join ad_tgflot lot on (lot.codsite = mgstctcontrcent.codsite)\n" +
                             "inner join tgfsit    sit ON sit.codsite = lot.codsite\n" +
+                            "inner join tcscon con on con.numcontrato = mgstctcontrcent.numcontrato\n" +
                             "where nvl(Mgstctcontrcent.Dtfim,sysdate) >= sysdate\n" +
-                            "and lot.codlot = {CODLOT}\n" +
-                            "and mgstctcontrcent.numcontrato = sit.ad_numcontrato");
+                            "and lot.codlot = {CODLOT}\n");
                     if (consultarDadosContrato.next()){
-                        //VariaveisFlow.setVariavel(idInstanciaProcesso, BigDecimal.ZERO,"COD_LOTACAO", consultarDadosContrato.getString("CODLOT"));
-
                         Object tipoper = VariaveisFlow.getVariavel(idInstanciaProcesso, "TIPOPER");
                         if(tipoper.toString().equalsIgnoreCase("S")){
                             VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", consultarDadosContrato.getString("AD_NUMCONTRATO"));
                         }
+                        VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "UNID_FATURAMENTO", consultarDadosContrato.getBigDecimal("CODSITE"));
+
+                        //PRODUCAO
+                        VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", consultarDadosContrato.getString("CODCENCUS"));
+                        //DESENV
+                        //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", consultarDadosContrato.getString("CODCENCUS"));
                     }
-        //        else if (!consultarDadosContrato.next()){
-        //            ErroUtils.disparaErro("Unidade de faturamento e contrato não localizado para o Usuário, fineza verificar com COCOP!");
-        //        }
                     consultarDadosContrato.close();
                 }
             }
@@ -82,15 +106,18 @@ public class BuscarDadosCliente implements EventoProcessoJava {
             }
             VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "PARCEIRO", String.valueOf(parceiroVO.asString("RAZAOSOCIAL")));
         } else if(codigoLotacao != null){
-
-            cnpjTela = VariaveisFlow.getVariavel(idInstanciaProcesso, "CNPJ").toString();
-
-            if(cnpjTela == null){
-                throw new Exception("Necessario informar o CNPJ, fineza verificar!");
+            try{
+                cnpjTela = VariaveisFlow.getVariavel(idInstanciaProcesso, "CNPJ").toString();
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new Exception("CNPJ nao informado, fineza verificar no formulario!");
             }
 
-            DynamicVO parceiroVO = this.parceiroDAO.findOne("CGC_CPF = ?", new Object[]{cnpjTela});
-            if(parceiroVO == null){
+            DynamicVO parceiroVO;
+            try {
+                parceiroVO = this.parceiroDAO.findOne("CGC_CPF = ?", new Object[]{cnpjTela});
+            }catch (Exception e){
+                e.printStackTrace();
                 throw new Exception(VariaveisFlow.PARCEIRO_NAO_ENCONTRADO);
             }
 
@@ -146,7 +173,12 @@ public class BuscarDadosCliente implements EventoProcessoJava {
 
         if(contextoEvento.getCampo("CODNAT") == null
                 || contextoEvento.getCampo("CODNAT").toString().equalsIgnoreCase("null")){
-            paramCodigoNatureza = new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "CODNAT").toString());
+            try{
+                paramCodigoNatureza = new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "CODNAT").toString());
+            }catch (Exception e){
+                e.printStackTrace();
+                throw new Exception("Natureza nao informada no formulario, fineza verificar!");
+            }
         }else {
             paramCodigoNatureza = BigDecimal.valueOf(Long.parseLong(contextoEvento.getCampo("CODNAT").toString()));
         }
@@ -155,6 +187,10 @@ public class BuscarDadosCliente implements EventoProcessoJava {
 
         DynamicVO rateio = rateioCPQ.findOne("IDINSTPRN = ?", new Object[]{idInstanciaProcesso});
         if(rateio != null){
+            //Update para o usuario SUP realizar a automacao no rateio
+            FluidUpdateVO rateioFUVO = rateioCPQ.prepareToUpdate(rateio);
+            rateioFUVO.set("CODUSU", BigDecimal.ZERO);
+            rateioFUVO.update();
             rateioCPQ.deleteByCriteria("IDINSTPRN = ?", new Object[]{idInstanciaProcesso});
         }
 

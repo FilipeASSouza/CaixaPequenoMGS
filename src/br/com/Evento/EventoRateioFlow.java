@@ -4,8 +4,11 @@ import br.com.sankhya.extensions.eventoprogramavel.EventoProgramavelJava;
 import br.com.sankhya.jape.event.PersistenceEvent;
 import br.com.sankhya.jape.event.TransactionContext;
 import br.com.sankhya.jape.vo.DynamicVO;
+import br.com.sankhya.jape.vo.EntityVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
+import br.com.sankhya.modelcore.auth.AuthenticationInfo;
+import br.com.sankhya.ws.ServiceContext;
 import br.com.util.ErroUtils;
 import br.com.util.VariaveisFlow;
 
@@ -26,6 +29,7 @@ public class EventoRateioFlow implements EventoProgramavelJava {
         DynamicVO vo = (DynamicVO) event.getVo();
         BigDecimal paramNatureza;
         BigDecimal paramCentroResultado;
+        BigDecimal usuarioLogado = ((AuthenticationInfo) ServiceContext.getCurrent().getAutentication()).getUserID();
 
         if(vo.asBigDecimal("CODNAT") == null){
             paramNatureza = new BigDecimal(VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"), "CODNAT").toString());
@@ -44,8 +48,10 @@ public class EventoRateioFlow implements EventoProgramavelJava {
         vo.setProperty("CODNAT", paramNatureza);
         vo.setProperty("CODCTACTB", contaContabilCRVO.asBigDecimalOrZero("CODCTACTB"));
         vo.setProperty("CODCENCUS", paramCentroResultado);
+        vo.setProperty("CODUSU", usuarioLogado);
 
         validarCampos(vo);
+        atualizarCentroResultado(vo);
 
         if (vo.asBigDecimal("VLRRATEIO") == null){
             valorTotalLiquidoRegistro = buscarValorTotal(event);
@@ -67,6 +73,26 @@ public class EventoRateioFlow implements EventoProgramavelJava {
         }
     }
 
+    private void atualizarCentroResultado(DynamicVO vo) throws Exception {
+        JapeWrapper lotacaoDAO = JapeFactory.dao("TGFLOT"); //AD_TGFLOT
+        JapeWrapper lotacaoFlowDAO = JapeFactory.dao("AD_LOTCRCPQ"); //AD_LOTCRCPQ
+        DynamicVO lotacaoVO;
+        DynamicVO lotacaoFlowVO;
+        try{
+            lotacaoVO = lotacaoDAO.findOne("CODSITE = ?", new Object[]{vo.asBigDecimal("CODSITRATEIO")});
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new Exception("Unidade nao localizada na tabela de integracao de lotacoes do Sankhya, fineza verificar com a Tesouraria MGS!");
+        }
+        try{
+            lotacaoFlowVO = lotacaoFlowDAO.findOne("CODLOT = ?", new Object[]{lotacaoVO.asBigDecimal("CODLOT")});
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new Exception("Lotacao nao localizada na tabela de apoio do Caixa Pequeno, fineza verificar com a Tesouraria MGS!");
+        }
+        vo.setProperty("CODCENCUS", lotacaoFlowVO.asBigDecimalOrZero("CODCENCUS"));
+    }
+
     private void validarDuplicidade(DynamicVO vo) throws Exception {
         Collection<DynamicVO> rateios = rateioCPQ.find("IDINSTPRN = ? AND CODREGISTRO <> ?"
                 , new Object[]{vo.asBigDecimal("IDINSTPRN"), vo.asBigDecimal("CODREGISTRO")});
@@ -75,7 +101,7 @@ public class EventoRateioFlow implements EventoProgramavelJava {
                     && rateio.asBigDecimal("CODCENCUS").equals(vo.asBigDecimal("CODCENCUS"))
                     && rateio.asBigDecimal("CODNAT").equals(vo.asBigDecimal("CODNAT"))
                     && rateio.asBigDecimal("CODSITRATEIO").equals(vo.asBigDecimal("CODSITRATEIO"))){
-                ErroUtils.disparaErro("Dados incorretos no rateio, fineza verificar!");
+                throw new Exception("Dados incorretos no rateio, fineza verificar!");
             }
         }
     }
@@ -88,11 +114,11 @@ public class EventoRateioFlow implements EventoProgramavelJava {
         if(BigDecimal.valueOf(100L).compareTo(vo.asBigDecimal("PERCRATEIO")) < 0){
             ErroUtils.disparaErro("Percentual nao pode ultrapassar 100%! Fineza verificar!");
         }
-
         validarRateio(vo);
         atualizaValorRateio(vo);
         validarDuplicidade(vo);
         validarCampos(vo);
+        atualizarCentroResultado(vo);
     }
 
     private void atualizaValorRateio(DynamicVO vo) {
@@ -105,15 +131,15 @@ public class EventoRateioFlow implements EventoProgramavelJava {
 
     private void validarCampos(DynamicVO vo) throws Exception {
         if(vo.asBigDecimal("CODPROJ") == null){
-            ErroUtils.disparaErro("O projeto não foi informado, fineza verificar!");
+            throw new Exception("O projeto não foi informado, fineza verificar!");
         } else if (vo.asBigDecimal("CODCTACTB")==null) {
-            ErroUtils.disparaErro("A conta contabil não foi informada, fineza verificar!");
+            throw new Exception("A conta contabil não foi informada, fineza verificar!");
         } else if (vo.asBigDecimal("CODSITRATEIO")==null) {
-            ErroUtils.disparaErro("A unidade faturamento não foi informada, fineza verificar!");
+            throw new Exception("A unidade faturamento não foi informada, fineza verificar!");
         } else if (vo.asBigDecimal("CODNAT")==null) {
-            ErroUtils.disparaErro("A natureza não foi informada, fineza verificar!");
+            throw new Exception("A natureza não foi informada, fineza verificar!");
         } else if (vo.asBigDecimal("CODCENCUS") == null) {
-            ErroUtils.disparaErro("O centro de resultado não foi informado, fineza verificar!");
+            throw new Exception("O centro de resultado não foi informado, fineza verificar!");
         }
     }
 
@@ -136,16 +162,17 @@ public class EventoRateioFlow implements EventoProgramavelJava {
     @Override
     public void beforeDelete(PersistenceEvent event) throws Exception {
 
-        DynamicVO vo = (DynamicVO) event.getVo();
-        BigDecimal codigoTipoOperacao = new BigDecimal(VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"), "TOPSERV") == null ?
-                VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"), "TOPPROD").toString() :
-                VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"), "TOPSERV").toString());
-
-        if (codigoTipoOperacao.equals(new BigDecimal("613"))
-            || codigoTipoOperacao.equals(new BigDecimal("603"))){
-            ErroUtils.disparaErro("Rateio não pode ser excluido!");
+        try{
+            DynamicVO vo = (DynamicVO) event.getVo();
+            JapeWrapper permissaoRateioFlowDAO = JapeFactory.dao("AD_PERRATEIOCPQ"); //AD_PERRATEIOCPQ
+            DynamicVO permissaoRateioFlowVO = permissaoRateioFlowDAO.findOne("CODUSU = ?", new Object[]{vo.asBigDecimalOrZero("CODUSU")});
+            if (permissaoRateioFlowVO.asString("PERMITEALTERACAO").equalsIgnoreCase("1")){
+                throw new Exception("Usuário não possui permissão para alteração!");
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+            throw new Exception("Usuário não possui permissão para alteração!");
         }
-
     }
 
     @Override
@@ -169,7 +196,7 @@ public class EventoRateioFlow implements EventoProgramavelJava {
             for (DynamicVO registro: rateios){
                 percentualEvento = percentualEvento.add(registro.asBigDecimal("PERCRATEIO"));
                 if (BigDecimal.valueOf(100L).compareTo(percentualEvento) < 0){
-                    ErroUtils.disparaErro("Percentual nao pode ultrapassar 100%! Fineza verificar!");
+                    throw new Exception("Percentual nao pode ultrapassar 100%! Fineza verificar!");
                 }
             }
         }

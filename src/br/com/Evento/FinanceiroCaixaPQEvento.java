@@ -9,7 +9,6 @@ import br.com.sankhya.jape.vo.DynamicVO;
 import br.com.sankhya.jape.wrapper.JapeFactory;
 import br.com.sankhya.jape.wrapper.JapeWrapper;
 import br.com.sankhya.modelcore.helper.SaldoBancarioHelpper;
-import br.com.sankhya.modelcore.util.EntityFacadeFactory;
 import br.com.util.NativeSqlDecorator;
 import br.com.util.VariaveisFlow;
 import com.sankhya.util.TimeUtils;
@@ -27,6 +26,10 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
     private JapeWrapper instanciaTarefaDAO = JapeFactory.dao("InstanciaTarefa");//TWFITAR
     private JapeWrapper instanciaVariavelDAO = JapeFactory.dao("InstanciaVariavel");//TWFIVAR
     private JapeWrapper liberacaoEventoDAO = JapeFactory.dao("LiberacaoLimite");//TSILIB
+    private JapeWrapper rateioFlowRegistroDAO = JapeFactory.dao("AD_FINRATEIOCPQ");//AD_FINRATEIOCPQ
+    private static JapeWrapper instanciaHistoricoDAO = JapeFactory.dao("HistoricoInstanciaProcesso");//TWFIHIS
+    private static JapeWrapper instanciaProcessoDAO = JapeFactory.dao("InstanciaProcesso");//TWFIPRN
+    private static JapeWrapper rateioFlowFormularioDAO = JapeFactory.dao("AD_RATEIOCPQ");//AD_RATEIOCPQ
 
     @Override
     public void beforeInsert(PersistenceEvent persistenceEvent) throws Exception {
@@ -100,6 +103,14 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
                         , new Object[]{ anexoSistemaVO.asBigDecimalOrZero("NUATTACH") });
             }
         }
+
+        Collection<DynamicVO> lancamentos = instanciaHistoricoDAO.find("IDINSTPRN = ?", new Object[]{nroinstanciaProcesso});
+        for (DynamicVO lancamento : lancamentos){
+            instanciaHistoricoDAO.deleteByCriteria("IDINSTPRN = ?", new Object[]{lancamento.asBigDecimal("IDINSTPRN")});
+        }
+
+        instanciaProcessoDAO.deleteByCriteria("IDINSTPRN = ?", new Object[]{nroinstanciaProcesso});
+        rateioFlowFormularioDAO.deleteByCriteria("IDINSTPRN = ?", new Object[]{nroinstanciaProcesso});
     }
 
     public void afterInsert(PersistenceEvent persistenceEvent) { }
@@ -144,46 +155,64 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
         JdbcWrapper jdbcWrapper = persistenceEvent.getJdbcWrapper();
 
         if(vo.asString("CNPJ") == null ){
+            rollbackRateio(vo);
             throw new Exception("CNPJ não informado, fineza verificar novamente!");
         }
 
         DynamicVO parceiroVO = parceiroDAO.findOne("CGC_CPF = ?", new Object[]{vo.asString("CNPJ")});
         if( parceiroVO == null ){
+            rollbackRateio(vo);
             throw new Exception("CNPJ informado não foi encontrado, fineza verificar com o setor financeiro MGS!");
         }else if( parceiroVO.asString("FORNECEDOR").equalsIgnoreCase(String.valueOf("N")) ){
+            rollbackRateio(vo);
             throw new Exception("CNPJ informado não pertence a um fornecedor, fineza verificar com o setor financeiro MGS!");
         }else if( parceiroVO.asString("ATIVO").equalsIgnoreCase(String.valueOf("N")) ){
+            rollbackRateio(vo);
             throw new Exception("Cadastro não está ativo, fineza verificar com o setor financeiro MGS!");
         }
 
         if(vo.asBigDecimalOrZero("CODCENCUS").equals(BigDecimal.ZERO)){
+            rollbackRateio(vo);
             throw new Exception("Centro de resultado não informado, fineza verificar novamente!");
         }
 
         DynamicVO centroResultadoVO = centroResultadoDAO.findByPK(vo.asBigDecimal("CODCENCUS"));
-        if(centroResultadoVO.asString("ATIVO").equalsIgnoreCase(String.valueOf("N"))){
-            throw new Exception(VariaveisFlow.CENTRO_RESULTADO_INATIVO);
-        }else if( centroResultadoVO.asString("ANALITICO").equalsIgnoreCase(String.valueOf("N")) ){
-            throw new Exception(VariaveisFlow.CENTRO_RESULTADO_NAO_ANALITICO);
+        try{
+            if(centroResultadoVO.asString("ATIVO").equalsIgnoreCase(String.valueOf("N"))){
+                rollbackRateio(vo);
+                throw new Exception(VariaveisFlow.CENTRO_RESULTADO_INATIVO);
+            }else if( centroResultadoVO.asString("ANALITICO").equalsIgnoreCase(String.valueOf("N")) ){
+                rollbackRateio(vo);
+                throw new Exception(VariaveisFlow.CENTRO_RESULTADO_NAO_ANALITICO);
+            }
+        }catch (Exception e){
+            rollbackRateio(vo);
+            throw new Exception("Centro de resultado não encontrado!");
         }
 
         if(vo.asBigDecimalOrZero("NUMNOTA").equals(BigDecimal.ZERO)){
+            rollbackRateio(vo);
             throw new Exception("Número da nota não informado, fineza verificar novamente!");
         }
 
         if(vo.asBigDecimalOrZero("NUMCONTR").equals(BigDecimal.ZERO)){
+            rollbackRateio(vo);
             throw new Exception("Contrato não vinculado com a unidade/ lotação, fineza verificar com o setor financeiro da MGS!");
         }else if(vo.asBigDecimalOrZero("TPNEG").equals(BigDecimal.ZERO)){
+            rollbackRateio(vo);
             throw new Exception("Tipo de negociação não informado, fineza verificar novamente!");
         }else if(vo.asBigDecimalOrZero("CODNAT").equals(BigDecimal.ZERO)){
+            rollbackRateio(vo);
             throw new Exception("Natureza não informado, fineza verificar novamente!");
         }else if(vo.asString("SERIENOTA") == null){
+            rollbackRateio(vo);
             throw new Exception("Serie não informada, fineza verificar novamente!");
         }else if(vo.asTimestamp("DTFATEM") == null
                 || vo.asTimestamp("DTENTRCONT") == null
                 || vo.asTimestamp("DTMOV") == null ){
             throw new Exception("Fineza verificar se as datas foram informadas corretamente!");
         }else if(vo.asBigDecimal("QTDNEG") == null || vo.asBigDecimal("VLRUNIT") == null){
+            rollbackRateio(vo);
             throw new Exception("Quantidade ou Valor Unitario não informado, fineza verificar novamente!");
         }
 
@@ -199,8 +228,13 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
             if( verificarNaturezaTopSQL.proximo() ){
                 natureza = verificarNaturezaTopSQL.getValorBigDecimal("CODNAT");
             }
+            if (natureza == null){
+                rollbackRateio(vo);
+                throw new Exception("Restrições no tipo de operação, natureza informada incorretamente. Fineza verificar!");
+            }
         }catch (Exception e){
             e.printStackTrace();
+            rollbackRateio(vo);
             throw new Exception("Restrições no tipo de operação, natureza informada incorretamente. Fineza verificar!");
         } finally {
             if(verificarNaturezaTopSQL != null){
@@ -223,6 +257,7 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
             }
         }catch (Exception e){
             e.printStackTrace();
+            rollbackRateio(vo);
             throw new Exception(VariaveisFlow.NOTA_SEM_ANEXO);
         }finally {
             if (verificarAnexoSQL != null){
@@ -231,6 +266,7 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
         }
 
         if( validaAnexo == null){
+            rollbackRateio(vo);
             throw new Exception(VariaveisFlow.NOTA_SEM_ANEXO);
         }
 
@@ -243,6 +279,7 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
 
             if(verificaRestricaoSerieTop.proximo()){
                 if(verificaRestricaoSerieTop.getValorBigDecimal("CODTIPOPER") != null ){
+                    rollbackRateio(vo);
                     throw new Exception("Restrições no tipo de operação, essa serie não pode ser utilizada para esse lançamento. Fineza verificar!");
                 }
             }
@@ -275,16 +312,23 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
         if (limiteSuperior != null) {
 
             if (BigDecimal.ZERO.compareTo(saldoConta) > 0) {
+                rollbackRateio(movimentoBancarioVO);
                 throw new Exception("Saldo da conta insuficiente");
             }
 
             if (saldoConta.compareTo(limiteSuperior) > 0) {
+                rollbackRateio(movimentoBancarioVO);
                 throw new Exception("Saldo da conta não pode ultrapassar o limite");
             }
 
             if( movimentoBancarioVO.asBigDecimal("VLRTOT").compareTo(saldoConta) > 0 ){
+                rollbackRateio(movimentoBancarioVO);
                 throw new Exception("Valor ultrapassou o saldo permitido para essa conta, gentileza procurar o setor financeiro!");
             }
         }
+    }
+
+    private void rollbackRateio( DynamicVO vo ) throws Exception {
+        rateioFlowRegistroDAO.deleteByCriteria("IDINSTPRN = ?", new Object[]{vo.asBigDecimalOrZero("IDINSTPRN")});
     }
 }

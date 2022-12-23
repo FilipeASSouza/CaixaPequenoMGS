@@ -40,30 +40,18 @@ public class UsuarioFlowProcessamento implements ScheduledAction{
             UsuarioFlowPortalModel usuarioFlowPortalModel = new UsuarioFlowPortalModel();
             nativeSql = new NativeSql(jdbcWrapper);
             nativeSql.appendSql("SELECT NUNICO, USUARIOPORTAL, TIPO FROM AD_INTEGRAUSURIOPORTAL WHERE ROWNUM <= 1 ORDER BY DHLANC");
-            ResultSet rs = nativeSql.executeQuery();
 
-            while(rs.next()) {
-
-                /*
-                Reunião: 10/08/2021
-                implementar na terça feira 10/08/2021
-                */
-
-                if( rs.getString("TIPO").equalsIgnoreCase("I")){
-                    usuarioFlowPortalModel.processarAcesso(rs.getBigDecimal("USUARIOPORTAL"),
-                            rs.getString("TIPO"), jdbcWrapper );
-                }else if( rs.getString("TIPO").equalsIgnoreCase("D") ){
-                    usuarioFlowPortalModel.removendoMembroEquipe(rs.getBigDecimal("USUARIOPORTAL")
-                            , rs.getString("TIPO"), jdbcWrapper );
-                }else if( rs.getString("TIPO").equalsIgnoreCase("U") ){
-                    usuarioFlowPortalModel.atualizandoMembroEquipe( rs.getBigDecimal("USUARIOPORTAL")
-                            , rs.getString("TIPO"), jdbcWrapper );
+            ResultSet rs;
+            for(rs = this.nativeSql.executeQuery(); rs.next(); JapeFactory.dao("AD_INTEGRAUSURIOPORTAL").deleteByCriteria("NUNICO = ?", new Object[]{rs.getBigDecimal("NUNICO")})) {
+                if (rs.getString("TIPO").equalsIgnoreCase("I")) {
+                    usuarioFlowPortalModel.processarAcesso(rs.getBigDecimal("USUARIOPORTAL"), rs.getString("TIPO"), this.jdbcWrapper);
+                } else if (rs.getString("TIPO").equalsIgnoreCase("D")) {
+                    usuarioFlowPortalModel.removendoMembroEquipe(rs.getBigDecimal("USUARIOPORTAL"), rs.getString("TIPO"), this.jdbcWrapper);
+                } else if (rs.getString("TIPO").equalsIgnoreCase("U")) {
+                    usuarioFlowPortalModel.atualizandoMembroEquipe(rs.getBigDecimal("USUARIOPORTAL"), rs.getString("TIPO"), this.jdbcWrapper);
                 }
-
-                //Excluindo o registro da tabela de integração
-                JapeFactory.dao("AD_INTEGRAUSURIOPORTAL").deleteByCriteria("NUNICO = ?"
-                        , new Object[]{ rs.getBigDecimal("NUNICO") });
             }
+
             rs.close();
         } catch (Exception e) {
             e.printStackTrace();

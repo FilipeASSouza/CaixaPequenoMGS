@@ -4,36 +4,54 @@ var tipOperacaoProdutoSeplag = 603;
 var tipOperacaoServicoSeplag = 613;
 var tipOperacaoProdutoMGS = 602;
 var tipOperacaoServicoMGS = 612;
-var codproj;
-var codemp;
+var codemp = 1;
+var codproj = 99990001;
+var contrato;
 
 var codigoProduto = getCampo("CODPROD");
 
-if(tipoOperacao == "S"){
-    if (tipoProcesso == "S"){
-        if(codigoProduto == "91576" ){
-            throw new java.lang.Exception('O produto selecionado não é um Serviço, fineza verificar!');
-        }
-        codproj = 99990001;
-        codemp = 1;
-        setCampo("TOPSERV", tipOperacaoServicoSeplag);
-    } else{
-        if( codigoProduto != "91576" ){
-            throw new java.lang.Exception('O produto foi selecionado incorretamente, fineza verificar!');
-        }
-        codproj = 99990001;
-        codemp = 1;
-        setCampo("TOPPROD", tipOperacaoProdutoSeplag);
+var parametroCaixaZerado = getCampo("CAIXAZERADO");
+var campoTipProc = getCampo("TIPPROC");
+var justificativa = getCampo("JSTCOMPR");
+var quantidade = getCampo("QTDNEG");
+
+if(parametroCaixaZerado !== 2){
+    if( campoTipProc == ""  || codigoProduto == ""
+        || quantidade == "" || justificativa == ""
+        || tipoOperacao == "" ){
+        throw new java.lang.Exception('Gentileza preencher o formulário!');
     }
-} else if( tipoOperacao == "M"){
-    if (tipoProcesso == "S"){
-            setCampo("TOPSERV", tipOperacaoServicoMGS);
+
+    if(tipoOperacao == "S"){
+        if (tipoProcesso == "S"){
+            if(codigoProduto == "91576" ){
+                throw new java.lang.Exception('O produto selecionado não é um Serviço, fineza verificar!');
+            }
+            setCampo("TOPSERV", tipOperacaoServicoSeplag);
         } else{
-            setCampo("TOPPROD", tipOperacaoProdutoMGS);
+            if( codigoProduto != "91576" ){
+                throw new java.lang.Exception('O produto foi selecionado incorretamente, fineza verificar!');
+            }
+            setCampo("TOPPROD", tipOperacaoProdutoSeplag);
+        }
+        setCampo("STATUSLIMITE", '1');
+    } else if( tipoOperacao == "M"){
+        if (tipoProcesso == "S"){
+                if(codigoProduto == "91576" ){
+                    throw new java.lang.Exception('O produto selecionado não é um Serviço, fineza verificar!');
+                }
+                setCampo("TOPSERV", tipOperacaoServicoMGS);
+            } else{
+                if( codigoProduto != "91576" ){
+                    throw new java.lang.Exception('O produto foi selecionado incorretamente, fineza verificar!');
+                }
+                setCampo("TOPPROD", tipOperacaoProdutoMGS);
+        }
+        contrato = 1;
     }
+
+    setCampo("CODPROJ", codproj);
+    setCampo("CODEMP", codemp);
+    setCampo("TIPPROC", tipoProcesso);
+    setCampo("NUMCONTR", contrato);
 }
-
-
-setCampo("CODPROJ", codproj);
-setCampo("CODEMP", codemp);
-setCampo("TIPPROC", tipoProcesso);
