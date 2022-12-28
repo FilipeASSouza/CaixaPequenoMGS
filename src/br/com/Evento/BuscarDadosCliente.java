@@ -57,16 +57,16 @@ public class BuscarDadosCliente implements EventoProcessoJava {
                     }
 
                     //PRODUCAO
-                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO").toString());
+                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO").toString());
                     //DESENV
-                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO"));
+                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO"));
 
                     //PRODUCAO
-                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS").toString());
+                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS").toString());
                     //DESENV
-                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS"));
+                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS"));
 
-                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "UNID_FATURAMENTO", lotacaoNativoVO.asBigDecimal("CODSITE"));
+                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "UNID_FATURAMENTO", lotacaoNativoVO.asBigDecimal("CODSITE"));
                 } else {
 
                     QueryExecutor consultarDadosContrato = contextoEvento.getQuery();
@@ -89,9 +89,9 @@ public class BuscarDadosCliente implements EventoProcessoJava {
                         VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "UNID_FATURAMENTO", consultarDadosContrato.getBigDecimal("CODSITE"));
 
                         //PRODUCAO
-                        VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", consultarDadosContrato.getString("CODCENCUS"));
-                        //DESENV
                         //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", consultarDadosContrato.getString("CODCENCUS"));
+                        //DESENV
+                        VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", consultarDadosContrato.getBigDecimal("CODCENCUS"));
                     }
                     consultarDadosContrato.close();
                 }
@@ -125,7 +125,8 @@ public class BuscarDadosCliente implements EventoProcessoJava {
         }
 
         if ( (statusLimite == null || statusLimite.equalsIgnoreCase("") || statusLimite.equalsIgnoreCase("null") || statusLimite.equalsIgnoreCase("1")) &&
-                 contextoEvento.getCampo("VLRTOT") != null || contextoEvento.getCampo("VLRDESCTOT") != null ){
+                 contextoEvento.getCampo("VLRTOT") != null || contextoEvento.getCampo("VLRDESCTOT") != null
+                || contextoEvento.getCampo("CODNAT") != null || contextoEvento.getCampo("COD_LOTACAO") != null ){
             gerarRateioFlow(idInstanciaProcesso, contextoEvento );
         }
     }
@@ -139,16 +140,15 @@ public class BuscarDadosCliente implements EventoProcessoJava {
         BigDecimal valorDesconto = contextoEvento.getCampo("VLRDESCTOT") == null ? BigDecimal.ZERO : new BigDecimal(contextoEvento.getCampo("VLRDESCTOT").toString());
         BigDecimal paramValorRateio = BigDecimal.ZERO;
 
-        if( valorDesconto == null ){
-            valorDesconto = new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "VLRDESCTOT").toString());
-        }
-
         if( contextoEvento.getCampo("VLRTOT") != null ){
             paramValorRateio = new BigDecimal(Double.valueOf(contextoEvento.getCampo("VLRTOT").toString()));
         }else{
-            paramValorRateio = new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "VLRTOT").toString());
+            BigDecimal quantidade = new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "QTDNEG").toString());
+            BigDecimal valorUnitario = new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "VLRUNIT").toString());
+            paramValorRateio = quantidade.multiply(valorUnitario);
+            paramValorRateio = paramValorRateio.subtract(valorDesconto);
+            VariaveisFlow.setVariavel(idInstanciaProcesso, new BigDecimal(contextoEvento.getIdInstanceTarefa().toString()), "VLRTOT", paramValorRateio);
         }
-        paramValorRateio = paramValorRateio.subtract(valorDesconto);
 
         if (contextoEvento.getCampo("UNID_FATURAMENTO") == null
                 || contextoEvento.getCampo("UNID_FATURAMENTO").toString().equalsIgnoreCase("null")){

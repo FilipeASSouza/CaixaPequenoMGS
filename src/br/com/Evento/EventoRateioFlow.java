@@ -58,10 +58,8 @@ public class EventoRateioFlow implements EventoProgramavelJava {
         } else if ( vo.asBigDecimal("VLRRATEIO") != null ) {
             BigDecimal valorTotal = VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"),"VLRTOT") == null ?
                     vo.asBigDecimal("VLRRATEIO") : new BigDecimal(VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"),"VLRTOT").toString());
-            BigDecimal valorDesconto = VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"),"VLRDESCTOT") == null
-                    ? BigDecimal.ZERO : new BigDecimal(VariaveisFlow.getVariavel(vo.asBigDecimal("IDINSTPRN"),"VLRDESCTOT").toString());
 
-            valorTotalLiquidoRegistro = valorTotal.subtract(valorDesconto);
+            valorTotalLiquidoRegistro = valorTotal;
         }
 
         validarDuplicidade(vo);
@@ -126,7 +124,7 @@ public class EventoRateioFlow implements EventoProgramavelJava {
         BigDecimal percentualEvento = vo.asBigDecimal("PERCRATEIO");
         percentualEvento = percentualEvento.divide(BigDecimal.valueOf(100L));
         resultadoValorEvento = percentualEvento.multiply(valorTotalLiquidoRegistro);
-        vo.setProperty("VLRRATEIO", resultadoValorEvento.round(new MathContext(3,RoundingMode.HALF_EVEN)));
+        vo.setProperty("VLRRATEIO", resultadoValorEvento.setScale(3,RoundingMode.HALF_EVEN));
     }
 
     private void validarCampos(DynamicVO vo) throws Exception {
@@ -147,14 +145,11 @@ public class EventoRateioFlow implements EventoProgramavelJava {
 
         DynamicVO vo = (DynamicVO) event.getVo();
         BigDecimal valorTotal = BigDecimal.ZERO;
-        BigDecimal valorDesconto = BigDecimal.ZERO;
         BigDecimal idInstanciaProcesso = vo.asBigDecimal("IDINSTPRN");
 
         valorTotal = new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "VLRTOT").toString());
-        valorDesconto = VariaveisFlow.getVariavel(idInstanciaProcesso, "VLRDESCTOT") == null ? BigDecimal.ZERO :
-            new BigDecimal(VariaveisFlow.getVariavel(idInstanciaProcesso, "VLRDESCTOT").toString());
 
-        BigDecimal resultado = valorTotal.subtract(valorDesconto);
+        BigDecimal resultado = valorTotal;
 
         return resultado;
     }
