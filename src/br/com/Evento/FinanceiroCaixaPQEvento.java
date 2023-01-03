@@ -30,6 +30,7 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
     private static JapeWrapper instanciaHistoricoDAO = JapeFactory.dao("HistoricoInstanciaProcesso");//TWFIHIS
     private static JapeWrapper instanciaProcessoDAO = JapeFactory.dao("InstanciaProcesso");//TWFIPRN
     private static JapeWrapper rateioFlowFormularioDAO = JapeFactory.dao("AD_RATEIOCPQ");//AD_RATEIOCPQ
+    private static JapeWrapper lancamentoFlowDAO = JapeFactory.dao("AD_FINCAIXAPQ");//AD_FINCAIXAPQ
 
     @Override
     public void beforeInsert(PersistenceEvent persistenceEvent) throws Exception {
@@ -306,12 +307,14 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
         DynamicVO contaVo = JapeFactory.dao("ContaBancaria").findOne("CODCTABCOINT = ?"
                 , new Object[]{ parcelaVO.asBigDecimal("CODCTABCOINT") });
         BigDecimal limiteSuperior = contaVo.asBigDecimal("AD_VLRLIMIT");
+        BigDecimal valorTotal = movimentoBancarioVO.asBigDecimal("VLRTOT");
 
         JdbcWrapper jdbcWrapper = persistenceEvent.getJdbcWrapper();
-        BigDecimal saldoConta = SaldoBancarioHelpper.getSaldoRealAntesDaReferencia(jdbcWrapper, parcelaVO.asBigDecimal("CODCTABCOINT"), new Timestamp(TimeUtils.add(TimeUtils.getNow().getTime(), 1, 6)));
+        BigDecimal saldoConta = SaldoBancarioHelpper.getSaldoRealAntesDaReferencia(jdbcWrapper, parcelaVO.asBigDecimal("CODCTABCOINT")
+                , new Timestamp(TimeUtils.add(TimeUtils.getNow().getTime(), 1, 6)));
         if (limiteSuperior != null) {
 
-            if (BigDecimal.ZERO.compareTo(saldoConta) > 0) {
+            if (saldoConta.compareTo(BigDecimal.ZERO) < 0 ) {
                 rollbackRateio(movimentoBancarioVO);
                 throw new Exception("Saldo da conta insuficiente");
             }
@@ -323,7 +326,20 @@ public class FinanceiroCaixaPQEvento implements EventoProgramavelJava {
 
             if( movimentoBancarioVO.asBigDecimal("VLRTOT").compareTo(saldoConta) > 0 ){
                 rollbackRateio(movimentoBancarioVO);
-                throw new Exception("Valor ultrapassou o saldo permitido para essa conta, gentileza procurar o setor financeiro!");
+                throw new Exception("Valor total R$ "+valorTotal+" caixa ultrapassou o saldo R$ "+saldoConta
+                        +" permitido para essa conta, gentileza procurar o setor financeiro!");
+            }
+
+            Collection<DynamicVO> lancamentosVO = lancamentoFlowDAO.find("TPNEG = ? AND CODREPROVADOR IS NULL AND DTMOV >= TO_CHAR( trunc(SYSDATE,'MM'), 'DD/MM/YYYY' )"
+                    , new Object[]{movimentoBancarioVO.asBigDecimal("TPNEG")});
+            for (DynamicVO lancamento: lancamentosVO){
+                valorTotal = valorTotal.add(lancamento.asBigDecimal("VLRTOT"));
+            }
+
+            if (valorTotal.compareTo(saldoConta) > 0){
+                rollbackRateio(movimentoBancarioVO);
+                throw new Exception("Valor total R$ "+valorTotal+" caixa ultrapassou o saldo R$ "+saldoConta
+                        + " permitido para essa conta, gentileza procurar o setor financeiro!");
             }
         }
     }

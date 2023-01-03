@@ -57,14 +57,14 @@ public class BuscarDadosCliente implements EventoProcessoJava {
                     }
 
                     //PRODUCAO
-                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO").toString());
+                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO").toString());
                     //DESENV
-                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO"));
+                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "NUMCONTR", centroResultadoLotacaoVO.asBigDecimal("NUMCONTRATO"));
 
                     //PRODUCAO
-                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS").toString());
+                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS").toString());
                     //DESENV
-                    VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS"));
+                    //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", centroResultadoLotacaoVO.asBigDecimal("CODCENCUS"));
 
                     VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "UNID_FATURAMENTO", lotacaoNativoVO.asBigDecimal("CODSITE"));
                 } else {
@@ -89,9 +89,9 @@ public class BuscarDadosCliente implements EventoProcessoJava {
                         VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "UNID_FATURAMENTO", consultarDadosContrato.getBigDecimal("CODSITE"));
 
                         //PRODUCAO
-                        //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", consultarDadosContrato.getString("CODCENCUS"));
+                        VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", consultarDadosContrato.getString("CODCENCUS"));
                         //DESENV
-                        VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", consultarDadosContrato.getBigDecimal("CODCENCUS"));
+                        //VariaveisFlow.setVariavel(idInstanciaProcesso, idInstanciaTarefa, "CODCENCUS", consultarDadosContrato.getBigDecimal("CODCENCUS"));
                     }
                     consultarDadosContrato.close();
                 }
